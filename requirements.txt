@@ -1,0 +1,9 @@
+numpy
+librosa==0.9.1
+samplerate
+resampy
+soundfile
+onnx
+onnxruntime
+fractions
+torch
