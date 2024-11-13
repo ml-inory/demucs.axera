@@ -5,6 +5,7 @@ import tqdm
 import torch
 from fractions import Fraction
 from cal_demucs import demucs_spec, demucs_magnitude, demucs_post_process
+import onnxruntime as ort
 
 
 def center_trim(tensor: torch.Tensor, reference: tp.Union[torch.Tensor, int]):
@@ -144,8 +145,11 @@ def run_model(model, mix, device, samplerate, segment, chunk_index):
     input_names = model.get_inputs()
     output_names = model.get_outputs()
     inputs = {input_names[0]: input1, input_names[1]: input2}
-    # outputs = model.run(output_names, inputs)
-    outputs = model.run(inputs)
+
+    if isinstance(model, ort.InferenceSession):
+        outputs = model.run(output_names, inputs)
+    else:
+        outputs = model.run(inputs)
 
     # import os
     # os.makedirs("input", exist_ok=True)
@@ -155,8 +159,12 @@ def run_model(model, mix, device, samplerate, segment, chunk_index):
     # outputs[0].tofile(os.path.join("gt", f"output0_{chunk_index}.bin"))
     # outputs[1].tofile(os.path.join("gt", f"output1_{chunk_index}.bin"))
 
-    x = th.from_numpy(outputs[output_names[0]])
-    xt = th.from_numpy(outputs[output_names[1]])
+    if isinstance(model, ort.InferenceSession):
+        x = th.from_numpy(outputs[0])
+        xt = th.from_numpy(outputs[1])
+    else:
+        x = th.from_numpy(outputs[output_names[0]])
+        xt = th.from_numpy(outputs[output_names[1]])
     S = 4  # len(self.source)
     B, C, Fq, T = input2.shape
     out = demucs_post_process(x, xt, padded_mix, segment, samplerate, B, S)
