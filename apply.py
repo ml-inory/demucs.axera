@@ -141,8 +141,8 @@ def run_model(model, mix, device, samplerate, segment, chunk_index):
     mag = demucs_magnitude(z).to(padded_mix.device)
     input2 = mag.numpy()
 
-    input_names = [input.name for input in model.get_inputs()]
-    output_names = [output.name for output in model.get_outputs()]
+    input_names = model.get_inputs()
+    output_names = model.get_outputs()
     inputs = {input_names[0]: input1, input_names[1]: input2}
     # outputs = model.run(output_names, inputs)
     outputs = model.run(inputs)
