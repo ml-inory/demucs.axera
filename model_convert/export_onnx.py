@@ -6,154 +6,171 @@ from fractions import Fraction
 from einops import rearrange
 from onnxsim import simplify
 import onnx
+import soundfile as sf
+import numpy as np
+import librosa
+import tqdm
+from cal_demucs import *
+import os
+import tarfile
 
 
-def forward_for_export(self, mix, mag):
-    length = mix.shape[-1]
-    length_pre_pad = None
-    # if self.use_train_segment:
-    #     if self.training:
-    #         self.segment = Fraction(mix.shape[-1], self.samplerate)
-    #     else:
-    #         training_length = int(self.segment * self.samplerate)
-    #         if mix.shape[-1] < training_length:
-    #             length_pre_pad = mix.shape[-1]
-    #             mix = F.pad(mix, (0, training_length - length_pre_pad))
-    # z = self._spec(mix)
-    # mag = self._magnitude(z).to(mix.device)
-    x = mag
+class TensorChunk:
+    def __init__(self, tensor, offset=0, length=None):
+        total_length = tensor.shape[-1]
+        assert offset >= 0
+        assert offset < total_length
 
-    B, C, Fq, T = x.shape
+        if length is None:
+            length = total_length - offset
+        else:
+            length = min(total_length - offset, length)
 
-    # unlike previous Demucs, we always normalize because it is easier.
-    mean = x.mean(dim=(1, 2, 3), keepdim=True)
-    std = x.std(dim=(1, 2, 3), keepdim=True)
-    x = (x - mean) / (1e-5 + std)
-    # x will be the freq. branch input.
+        if isinstance(tensor, TensorChunk):
+            self.tensor = tensor.tensor
+            self.offset = offset + tensor.offset
+        else:
+            self.tensor = tensor
+            self.offset = offset
+        self.length = length
+        self.device = tensor.device
 
-    # Prepare the time branch input.
-    xt = mix
-    meant = xt.mean(dim=(1, 2), keepdim=True)
-    stdt = xt.std(dim=(1, 2), keepdim=True)
-    xt = (xt - meant) / (1e-5 + stdt)
+    @property
+    def shape(self):
+        shape = list(self.tensor.shape)
+        shape[-1] = self.length
+        return shape
 
-    # okay, this is a giant mess I know...
-    saved = []  # skip connections, freq.
-    saved_t = []  # skip connections, time.
-    lengths = []  # saved lengths to properly remove padding, freq branch.
-    lengths_t = []  # saved lengths for time branch.
-    for idx, encode in enumerate(self.encoder):
-        lengths.append(x.shape[-1])
-        inject = None
-        if idx < len(self.tencoder):
-            # we have not yet merged branches.
-            lengths_t.append(xt.shape[-1])
-            tenc = self.tencoder[idx]
-            xt = tenc(xt)
-            if not tenc.empty:
-                # save for skip connection
-                saved_t.append(xt)
-            else:
-                # tenc contains just the first conv., so that now time and freq.
-                # branches have the same shape and can be merged.
-                inject = xt
-        x = encode(x, inject)
-        if idx == 0 and self.freq_emb is not None:
-            # add frequency embedding to allow for non equivariant convolutions
-            # over the frequency axis.
-            frs = torch.arange(x.shape[-2], device=x.device)
-            emb = self.freq_emb(frs).t()[None, :, :, None].expand_as(x)
-            x = x + self.freq_emb_scale * emb
+    def padded(self, target_length):
+        delta = target_length - self.length
+        total_length = self.tensor.shape[-1]
+        assert delta >= 0
 
-        saved.append(x)
-    if self.crosstransformer:
-        if self.bottom_channels:
-            b, c, f, t = x.shape
-            x = rearrange(x, "b c f t-> b c (f t)")
-            x = self.channel_upsampler(x)
-            x = rearrange(x, "b c (f t)-> b c f t", f=f)
-            xt = self.channel_upsampler_t(xt)
+        start = self.offset - delta // 2
+        end = start + target_length
 
-        x, xt = self.crosstransformer(x, xt)
+        correct_start = max(0, start)
+        correct_end = min(total_length, end)
 
-        if self.bottom_channels:
-            x = rearrange(x, "b c f t-> b c (f t)")
-            x = self.channel_downsampler(x)
-            x = rearrange(x, "b c (f t)-> b c f t", f=f)
-            xt = self.channel_downsampler_t(xt)
+        pad_left = correct_start - start
+        pad_right = end - correct_end
 
-    for idx, decode in enumerate(self.decoder):
-        skip = saved.pop(-1)
-        x, pre = decode(x, skip, lengths.pop(-1))
-        # `pre` contains the output just before final transposed convolution,
-        # which is used when the freq. and time branch separate.
+        out = F.pad(self.tensor[..., correct_start:correct_end], (pad_left, pad_right))
+        assert out.shape[-1] == target_length
+        return out
+    
 
-        offset = self.depth - len(self.tdecoder)
-        if idx >= offset:
-            tdec = self.tdecoder[idx - offset]
-            length_t = lengths_t.pop(-1)
-            if tdec.empty:
-                assert pre.shape[2] == 1, pre.shape
-                pre = pre[:, :, 0]
-                xt, _ = tdec(pre, None, length_t)
-            else:
-                skip = saved_t.pop(-1)
-                xt, _ = tdec(xt, skip, length_t)
+def generate_data(mix,
+                overlap: float = 0.25,
+                device: tp.Union[str, torch.device] = 'cpu',
+                len_model_sources=4,
+                segment=Fraction(39, 5),
+                samplerate=44100,
+                save_path="calibration_dataset"
+                ) -> torch.Tensor:
+    """
+    :param mix:
+    :param overlap:
+    :param device:
+    :param transition_power:
+    :param len_model_sources:
+    :param segment:
+    :param samplerate:
+    :param model:
+    :return:
+    """
+    model_weights = [1.]*len_model_sources
+    totals = [0.] * len_model_sources
+    batch, channels, length = mix.shape
 
-    # Let's make sure we used all stored skip connections.
-    assert len(saved) == 0
-    assert len(lengths_t) == 0
-    assert len(saved_t) == 0
+    segment_length: int = int(samplerate * segment)
+    stride = int((1 - overlap) * segment_length)
 
-    S = len(self.sources)
-    x = x.view(B, S, -1, Fq, T)
-    x = x * std[:, None] + mean[:, None]
+    os.makedirs(save_path, exist_ok=True)
+    mix_path = os.path.join(save_path, "mix")
+    mag_path = os.path.join(save_path, "mag")
+    os.makedirs(mix_path, exist_ok=True)
+    os.makedirs(mag_path, exist_ok=True)
 
-    return x, xt
+    mix_files = tarfile.open(f"{mix_path}/mix.tar.gz", "w:gz")
+    mag_files = tarfile.open(f"{mag_path}/mag.tar.gz", "w:gz")
 
-    # to cpu as mps doesnt support complex numbers
-    # demucs issue #435 ##432
-    # NOTE: in this case z already is on cpu
-    # TODO: remove this when mps supports complex numbers
-    # x_is_mps = x.device.type == "mps"
-    # if x_is_mps:
-    #     x = x.cpu()
+    chunk_index = 0
+    for offset in tqdm.tqdm(range(0, length, stride)):
+        chunk = TensorChunk(mix, offset, segment_length)
 
-    # zout = self._mask(z, x)
-    # x = self._ispec(zout, training_length)
+        padded_mix = chunk.padded(segment_length).to(device)
 
-    # # back to mps device
-    # if x_is_mps:
-    #     x = x.to("mps")
+        input1 = padded_mix.numpy()
+        z = demucs_spec(padded_mix)
+        mag = demucs_magnitude(z).to(padded_mix.device)
+        input2 = mag.numpy()
 
-    # xt = xt.view(B, S, -1, training_length)
+        mix_filename = os.path.join(mix_path, f"{chunk_index}.npy")
+        mag_filename = os.path.join(mag_path, f"{chunk_index}.npy")
+        np.save(mix_filename, input1)
+        np.save(mag_filename, input2)
 
-    # xt = xt * stdt[:, None] + meant[:, None]
-    # x = xt + x
-    # if length_pre_pad:
-    #     x = x[..., :length_pre_pad]
-    # return x
+        mix_files.add(mix_filename)
+        mag_files.add(mag_filename)
+
+        # offset += segment_length
+        chunk_index += 1
+
+    mix_files.close()
+    mag_files.close()
+
+    print(f"Saved dataset to {save_path}")
 
 
-model = get_model(DEFAULT_MODEL).models[0]
-model.forward = model.forward_for_export
-model.eval()
+def main():
+    model_name = "htdemucs_ft"
+    model = get_model(model_name).models[0]
 
-input_names = ("mix", "mag")
-output_names = ("x", "xt")
-inputs = (
-    torch.zeros(1,2,343980, dtype=torch.float32),
-    torch.zeros(1,4,2048,336, dtype=torch.float32),
-)
-onnx_name = DEFAULT_MODEL + ".onnx"
-torch.onnx.export(model,               # model being run
-    inputs,                    # model input (or a tuple for multiple inputs)
-    onnx_name,              # where to save the model (can be a file or file-like object)
-    export_params=True,        # store the trained parameter weights inside the model file
-    opset_version=16,          # the ONNX version to export the model to
-    do_constant_folding=True,  # whether to execute constant folding for optimization
-    input_names = input_names, # the model's input names
-    output_names = output_names # the model's output names
-)
-sim_model,_ = simplify(onnx_name)
-onnx.save(sim_model, onnx_name)
+    target_sr = 44100
+    overlap = 0.25
+    input_audio = "../Spring.wav"
+    wav, origin_sr = sf.read(input_audio, always_2d=True, dtype="float32")
+    if origin_sr != target_sr:
+        print(f"Origin sample rate is {origin_sr}, resampling to {target_sr}...")
+        wav = librosa.resample(wav, orig_sr=origin_sr, target_sr=target_sr)
+
+    if wav.shape[0] != 2:
+        wav = wav.transpose()
+
+    ref = wav.mean(0)
+    wav -= ref.mean()
+    wav /= ref.std() + 1e-8
+    wav = torch.from_numpy(wav)
+
+    generate_data(
+        wav[None],
+        overlap=overlap,
+        save_path="calibration_dataset"
+    )
+
+    # Export ONNX
+    model.forward = model.forward_for_export
+
+    input_names = ("mix", "mag")
+    output_names = ("x", "xt")
+    inputs = (
+        torch.zeros(1,2,343980, dtype=torch.float32),
+        torch.zeros(1,4,2048,336, dtype=torch.float32),
+    )
+    onnx_name = model_name + ".onnx"
+    torch.onnx.export(model,               # model being run
+        inputs,                    # model input (or a tuple for multiple inputs)
+        onnx_name,              # where to save the model (can be a file or file-like object)
+        export_params=True,        # store the trained parameter weights inside the model file
+        opset_version=16,          # the ONNX version to export the model to
+        do_constant_folding=True,  # whether to execute constant folding for optimization
+        input_names = input_names, # the model's input names
+        output_names = output_names # the model's output names
+    )
+    sim_model,_ = simplify(onnx_name)
+    onnx.save(sim_model, onnx_name)
+
+
+if __name__ == "__main__":
+    main()

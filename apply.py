@@ -142,13 +142,12 @@ def run_model(model, mix, device, samplerate, segment, chunk_index):
     mag = demucs_magnitude(z).to(padded_mix.device)
     input2 = mag.numpy()
 
-    input_names = model.get_inputs()
-    output_names = model.get_outputs()
-    inputs = {input_names[0]: input1, input_names[1]: input2}
-
     if isinstance(model, ort.InferenceSession):
-        outputs = model.run(output_names, inputs)
+        outputs = model.run(None, {"mix": input1, "mag": input2})
     else:
+        input_names = model.get_inputs()
+        output_names = model.get_outputs()
+        inputs = {input_names[0]: input1, input_names[1]: input2}
         outputs = model.run(inputs)
 
     # import os

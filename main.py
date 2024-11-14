@@ -39,7 +39,8 @@ def main():
     if origin_sr != target_sr:
         print(f"Origin sample rate is {origin_sr}, resampling to {target_sr}...")
         wav = librosa.resample(wav, orig_sr=origin_sr, target_sr=target_sr)
-    wav = wav.transpose()
+    if wav.shape[0] != 2:
+        wav = wav.transpose()
     # print(wav.shape)
 
     print("Loading model...")
@@ -71,8 +72,10 @@ def main():
     print("Saving audio...")
     for name, source in res.items():
         source = source / max(1.01 * np.abs(source).max(), 1)
+        if source.shape[1] != 2:
+            source = source.transpose()
         audio_path = os.path.join(output_path, f"{os.path.splitext(os.path.basename(input_audio))[0]}_{name}.wav")
-        sf.write(audio_path, source.transpose(), samplerate=target_sr)
+        sf.write(audio_path, source, samplerate=target_sr)
         print(f"Save {name} to {audio_path}")
 
 
