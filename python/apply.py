@@ -137,18 +137,23 @@ def run_model(model, mix, device, samplerate, segment, chunk_index):
     mix = TensorChunk(mix)
     padded_mix = mix.padded(valid_length).to(device)
 
+    import time
+    start = time.time()
     input1 = padded_mix.numpy()
     z = demucs_spec(padded_mix)
     mag = demucs_magnitude(z).to(padded_mix.device)
     input2 = mag.numpy()
+    print(f"preprocess take {time.time() - start}s  input shape: {padded_mix.shape}")
 
     if isinstance(model, ort.InferenceSession):
         outputs = model.run(None, {"mix": input1, "mag": input2})
     else:
+        start = time.time()
         input_names = model.get_inputs()
         output_names = model.get_outputs()
         inputs = {input_names[0]: input1, input_names[1]: input2}
         outputs = model.run(inputs)
+        print(f"run take {1000 * (time.time() - start)}ms")
 
     # import os
     # os.makedirs("input", exist_ok=True)
@@ -166,6 +171,9 @@ def run_model(model, mix, device, samplerate, segment, chunk_index):
         xt = th.from_numpy(outputs[output_names[1]])
     S = 4  # len(self.source)
     B, C, Fq, T = input2.shape
+
+    start = time.time()
     out = demucs_post_process(x, xt, padded_mix, segment, samplerate, B, S)
+    print(f"postprocess take {1000 * (time.time() - start)}ms")
 
     return center_trim(out, length)

@@ -23,9 +23,9 @@
 	    "data_type": "U16"
 	    },
 	    {
-		"op_type": "Sub",
-		"data_type": "FP32",
-		"output_data_type": "FP32"
+      "op_type": "Sub",
+      "data_type": "FP32",
+      "output_data_type": "FP32"
 	    }
     ],
     "calibration_method": "MinMax",

@@ -92,8 +92,8 @@ def generate_data(mix,
     os.makedirs(mix_path, exist_ok=True)
     os.makedirs(mag_path, exist_ok=True)
 
-    mix_files = tarfile.open(f"{mix_path}/mix.tar.gz", "w:gz")
-    mag_files = tarfile.open(f"{mag_path}/mag.tar.gz", "w:gz")
+    mix_files = tarfile.open(f"{save_path}/mix.tar.gz", "w:gz")
+    mag_files = tarfile.open(f"{save_path}/mag.tar.gz", "w:gz")
 
     chunk_index = 0
     for offset in tqdm.tqdm(range(0, length, stride)):

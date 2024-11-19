@@ -6,6 +6,7 @@ import soundfile as sf
 import librosa
 from apply import apply_model
 import torch
+import time
 
 
 def get_args():
@@ -47,10 +48,12 @@ def main():
     sess = InferenceSession.load_from_model(model_path)
 
     print("Preprocessing audio...")
+    start = time.time()
     ref = wav.mean(0)
     wav -= ref.mean()
     wav /= ref.std() + 1e-8
     wav = torch.from_numpy(wav)
+    print(f"preprocess audio take {1000 * (time.time() - start)}ms, wav.size() = {wav.size()}")
 
     print("Running model...")
     out = apply_model(
