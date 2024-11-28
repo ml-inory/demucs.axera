@@ -13,7 +13,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_audio", "-i", type=str, required=True, help="Input audio file(.wav)")
     parser.add_argument("--output_path", "-o", type=str, required=False, default="./output", help="Seperated wav path")
-    parser.add_argument("--model", "-m", type=str, required=False, default="stage2.axmodel", help="demucs onnx model")
+    parser.add_argument("--model", "-m", type=str, required=False, default="../models/htdemucs_ft.axmodel", help="demucs onnx model")
     parser.add_argument("--overlap", type=float, required=False, default=0.25)
     return parser.parse_args()
 
@@ -53,7 +53,7 @@ def main():
     wav -= ref.mean()
     wav /= ref.std() + 1e-8
     wav = torch.from_numpy(wav)
-    print(f"preprocess audio take {1000 * (time.time() - start)}ms, wav.size() = {wav.size()}")
+    print(f"preprocess audio take {1000 * (time.time() - start)}ms")
 
     print("Running model...")
     out = apply_model(
