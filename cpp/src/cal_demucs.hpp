@@ -188,11 +188,11 @@ static std::vector<std::vector<float>> demucs_post_process(const std::vector<flo
     timer.start();
     auto zout = demucs_mask(m);
     timer.stop();
-    // printf("demucs_mask take %.2fms\n", timer.elapsed<utilities::timer::milliseconds>());
+    printf("demucs_mask take %.2fms\n", timer.elapsed<utilities::timer::milliseconds>());
 
     timer.start();
     auto x = demucs_ispec(zout, segment_length);
     timer.stop();
-    // printf("demucs_ispec take %.2fms\n", timer.elapsed<utilities::timer::milliseconds>());
+    printf("demucs_ispec take %.2fms\n", timer.elapsed<utilities::timer::milliseconds>());
     return center_trim(x, trim_len);
 }

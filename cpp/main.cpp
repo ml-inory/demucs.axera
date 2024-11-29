@@ -172,7 +172,7 @@ int main(int argc, char** argv) {
         auto z = demucs_spec(padded_mix);
         auto mag = demucs_magnitude(z);
         timer.stop();
-        // printf("Preprocess chunk take %.2fms\n", timer.elapsed<utilities::timer::milliseconds>());
+        printf("Preprocess chunk take %.2fms\n", timer.elapsed<utilities::timer::milliseconds>());
 
         // run
         timer.start();
@@ -185,14 +185,14 @@ int main(int argc, char** argv) {
         model.GetOutput(x.data(), 0);
         model.GetOutput(xt.data(), 1);
         timer.stop();
-        // printf("Run take %.2fms\n", timer.elapsed<utilities::timer::milliseconds>());
+        printf("Run take %.2fms\n", timer.elapsed<utilities::timer::milliseconds>());
 
         // postprocess
         auto out = demucs_post_process(x, xt, padded_mix, segment_length, 1, 4, chunk.length);
 
         futures.push_back(std::make_pair(out, offset));
 
-        printf("%d: %ld\n", chunk_index++, out[0].size());
+        printf("%d/%d\n", ++chunk_index, int(ceilf(length * 1.0f / stride)));
     }
 
     // apply weight
