@@ -12,7 +12,7 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_audio", "-i", type=str, required=True, help="Input audio file(.wav)")
     parser.add_argument("--output_path", "-o", type=str, required=False, default="./output", help="Seperated wav path")
-    parser.add_argument("--model", "-m", type=str, required=False, default="stage2.onnx", help="demucs onnx model")
+    parser.add_argument("--model", "-m", type=str, required=False, default="../models/htdemucs_ft.onnx", help="demucs onnx model")
     parser.add_argument("--overlap", type=float, required=False, default=0.25)
     return parser.parse_args()
 
@@ -67,6 +67,7 @@ def main():
     wav += ref.mean()
 
     out = out.numpy()
+    print(out.shape)
 
     sources = ['drums', 'bass', 'other', 'vocals']
     res = dict(zip(sources, out[0]))

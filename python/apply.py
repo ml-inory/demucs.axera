@@ -98,7 +98,7 @@ def apply_model(mix,
     chunk_index = 0
     for offset in tqdm.tqdm(range(0, length, stride)):
         chunk = TensorChunk(mix, offset, segment_length)
-        future = run_model(model, chunk, device, samplerate, segment, chunk_index)
+        future = run_model(model, chunk, device, samplerate, segment)
         futures.append((future, offset))
         offset += segment_length
         chunk_index += 1
@@ -123,7 +123,7 @@ def apply_model(mix,
     return out
 
 
-def run_model(model, mix, device, samplerate, segment, chunk_index):
+def run_model(model, mix, device, samplerate, segment):
     """
     :param model:
     :param mix:
@@ -137,23 +137,23 @@ def run_model(model, mix, device, samplerate, segment, chunk_index):
     mix = TensorChunk(mix)
     padded_mix = mix.padded(valid_length).to(device)
 
-    import time
-    start = time.time()
+    # import time
+    # start = time.time()
     input1 = padded_mix.numpy()
     z = demucs_spec(padded_mix)
     mag = demucs_magnitude(z).to(padded_mix.device)
     input2 = mag.numpy()
-    print(f"preprocess take {time.time() - start}s  input shape: {padded_mix.shape}")
+    # print(f"preprocess take {time.time() - start}s  input shape: {padded_mix.shape}")
 
     if isinstance(model, ort.InferenceSession):
         outputs = model.run(None, {"mix": input1, "mag": input2})
     else:
-        start = time.time()
+        # start = time.time()
         input_names = model.get_inputs()
         output_names = model.get_outputs()
         inputs = {input_names[0]: input1, input_names[1]: input2}
         outputs = model.run(inputs)
-        print(f"run take {1000 * (time.time() - start)}ms")
+        # print(f"run take {1000 * (time.time() - start)}ms")
 
     # import os
     # os.makedirs("input", exist_ok=True)
@@ -172,8 +172,8 @@ def run_model(model, mix, device, samplerate, segment, chunk_index):
     S = 4  # len(self.source)
     B, C, Fq, T = input2.shape
 
-    start = time.time()
+    # start = time.time()
     out = demucs_post_process(x, xt, padded_mix, segment, samplerate, B, S)
-    print(f"postprocess take {1000 * (time.time() - start)}ms")
+    # print(f"postprocess take {1000 * (time.time() - start)}ms")
 
     return center_trim(out, length)

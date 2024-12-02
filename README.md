@@ -1,5 +1,7 @@
 # demucs.axera
 
+音乐分离模型，[官方repo](https://github.com/facebookresearch/demucs)
+
 ## 下载模型
 ```
 ./download_models.sh
