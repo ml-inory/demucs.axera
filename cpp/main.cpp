@@ -4,6 +4,7 @@
 #include <vector>
 #include <cmath>
 #include <filesystem>
+#include <algorithm>
 
 #include "cmdline.h"
 #include "EngineWrapper.hpp"
@@ -195,6 +196,8 @@ int main(int argc, char** argv) {
         printf("%d/%d\n", ++chunk_index, int(ceilf(length * 1.0f / stride)));
     }
 
+    printf("Saving audios...\n");
+
     // apply weight
 
     // pack data
@@ -202,18 +205,19 @@ int main(int argc, char** argv) {
     for (auto& f : futures) {
         // (S * 2, length)
         AUDIO_DATA& x = f.first;
+        int audio_len = std::min((int)x[0].size(), stride);
         // drums
-        drums[0].insert(drums[0].end(), x[0].begin(), x[0].begin() + stride);
-        drums[1].insert(drums[1].end(), x[1].begin(), x[1].begin() + stride);
+        drums[0].insert(drums[0].end(), x[0].begin(), x[0].begin() + audio_len);
+        drums[1].insert(drums[1].end(), x[1].begin(), x[1].begin() + audio_len);
         // bass
-        bass[0].insert(bass[0].end(), x[2].begin(), x[2].begin() + stride);
-        bass[1].insert(bass[1].end(), x[3].begin(), x[3].begin() + stride);
+        bass[0].insert(bass[0].end(), x[2].begin(), x[2].begin() + audio_len);
+        bass[1].insert(bass[1].end(), x[3].begin(), x[3].begin() + audio_len);
         // other
-        other[0].insert(other[0].end(), x[4].begin(), x[4].begin() + stride);
-        other[1].insert(other[1].end(), x[5].begin(), x[5].begin() + stride);
+        other[0].insert(other[0].end(), x[4].begin(), x[4].begin() + audio_len);
+        other[1].insert(other[1].end(), x[5].begin(), x[5].begin() + audio_len);
         // vocals
-        vocals[0].insert(vocals[0].end(), x[6].begin(), x[6].begin() + stride);
-        vocals[1].insert(vocals[1].end(), x[7].begin(), x[7].begin() + stride);
+        vocals[0].insert(vocals[0].end(), x[6].begin(), x[6].begin() + audio_len);
+        vocals[1].insert(vocals[1].end(), x[7].begin(), x[7].begin() + audio_len);
     }
 
     // * std + mean
@@ -256,6 +260,10 @@ int main(int argc, char** argv) {
     output_audio_file.setAudioBuffer(vocals);
     output_audio_file.save(vocals_path);
 
+    printf("Saved drum to %s\n", drum_path.c_str());
+    printf("Saved bass to %s\n", bass_path.c_str());
+    printf("Saved other to %s\n", other_path.c_str());
+    printf("Saved vocal to %s\n", vocals_path.c_str());
 
     return 0;
 }
