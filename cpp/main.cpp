@@ -73,7 +73,7 @@ void normalize_audio(AUDIO_DATA& audio_data) {
 
 int main(int argc, char** argv) {
     cmdline::parser cmd;
-    cmd.add<std::string>("model", 'm', "demucs axmodel", false, "./models/htdemucs_ft.axmodel");
+    cmd.add<std::string>("model", 'm', "demucs axmodel", false, "../models/htdemucs_ft.axmodel");
     cmd.add<std::string>("input", 'i', "input audio file", true, "");
     cmd.add<std::string>("output", 'o', "output path", false, "output");
     cmd.add<float>("overlap", 0, "segment overlap ratio", false, 0.25f);
@@ -203,17 +203,17 @@ int main(int argc, char** argv) {
         // (S * 2, length)
         AUDIO_DATA& x = f.first;
         // drums
-        drums[0].insert(drums[0].end(), x[0].begin(), x[0].end());
-        drums[1].insert(drums[1].end(), x[1].begin(), x[1].end());
+        drums[0].insert(drums[0].end(), x[0].begin(), x[0].begin() + stride);
+        drums[1].insert(drums[1].end(), x[1].begin(), x[1].begin() + stride);
         // bass
-        bass[0].insert(bass[0].end(), x[2].begin(), x[2].end());
-        bass[1].insert(bass[1].end(), x[3].begin(), x[3].end());
+        bass[0].insert(bass[0].end(), x[2].begin(), x[2].begin() + stride);
+        bass[1].insert(bass[1].end(), x[3].begin(), x[3].begin() + stride);
         // other
-        other[0].insert(other[0].end(), x[4].begin(), x[4].end());
-        other[1].insert(other[1].end(), x[5].begin(), x[5].end());
+        other[0].insert(other[0].end(), x[4].begin(), x[4].begin() + stride);
+        other[1].insert(other[1].end(), x[5].begin(), x[5].begin() + stride);
         // vocals
-        vocals[0].insert(vocals[0].end(), x[6].begin(), x[6].end());
-        vocals[1].insert(vocals[1].end(), x[7].begin(), x[7].end());
+        vocals[0].insert(vocals[0].end(), x[6].begin(), x[6].begin() + stride);
+        vocals[1].insert(vocals[1].end(), x[7].begin(), x[7].begin() + stride);
     }
 
     // * std + mean
