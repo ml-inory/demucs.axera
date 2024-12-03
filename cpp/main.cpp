@@ -73,7 +73,7 @@ void normalize_audio(AUDIO_DATA& audio_data) {
 
 int main(int argc, char** argv) {
     cmdline::parser cmd;
-    cmd.add<std::string>("model", 'm', "demucs axmodel", false, "../models/htdemucs_ft.axmodel");
+    cmd.add<std::string>("model", 'm', "demucs axmodel", false, "./models/htdemucs_ft.axmodel");
     cmd.add<std::string>("input", 'i', "input audio file", true, "");
     cmd.add<std::string>("output", 'o', "output path", false, "output");
     cmd.add<float>("overlap", 0, "segment overlap ratio", false, 0.25f);
