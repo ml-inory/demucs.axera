@@ -13,6 +13,7 @@ import tqdm
 from cal_demucs import *
 import os
 import tarfile
+import argparse
 
 
 class TensorChunk:
@@ -123,13 +124,20 @@ def generate_data(mix,
     print(f"Saved dataset to {save_path}")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--input", "-i", type=str, required=True, help="Input audio in wav format")
+    return parser.parse_args()
+
+
 def main():
+    args = parse_args()
     model_name = "htdemucs_ft"
     model = get_model(model_name).models[0]
 
     target_sr = 44100
     overlap = 0.25
-    input_audio = "../Spring.wav"
+    input_audio = args.input
     wav, origin_sr = sf.read(input_audio, always_2d=True, dtype="float32")
     if origin_sr != target_sr:
         print(f"Origin sample rate is {origin_sr}, resampling to {target_sr}...")
