@@ -5,5 +5,4 @@ resampy
 soundfile
 onnx
 onnxruntime
-fractions
 torch
