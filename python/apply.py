@@ -99,6 +99,7 @@ def apply_model(mix,
     for offset in tqdm.tqdm(range(0, length, stride)):
         chunk = TensorChunk(mix, offset, segment_length)
         future = run_model(model, chunk, device, samplerate, segment)
+        # future.numpy().tofile(f"out_{chunk_index}.bin")
         futures.append((future, offset))
         offset += segment_length
         chunk_index += 1
@@ -145,6 +146,10 @@ def run_model(model, mix, device, samplerate, segment):
     input2 = mag.numpy()
     # print(f"preprocess take {time.time() - start}s  input shape: {padded_mix.shape}")
 
+    # th.view_as_real(z).numpy().tofile("z.bin")
+    # input1.tofile("input1.bin")
+    # input2.tofile("mag.bin")
+
     if isinstance(model, ort.InferenceSession):
         outputs = model.run(None, {"mix": input1, "mag": input2})
     else:
@@ -171,6 +176,9 @@ def run_model(model, mix, device, samplerate, segment):
         xt = th.from_numpy(outputs[output_names[1]])
     S = 4  # len(self.source)
     B, C, Fq, T = input2.shape
+
+    # x.numpy().astype(np.float32).tofile("output0.bin")
+    # xt.numpy().astype(np.float32).tofile("output1.bin")
 
     # start = time.time()
     out = demucs_post_process(x, xt, padded_mix, segment, samplerate, B, S)

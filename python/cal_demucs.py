@@ -131,6 +131,7 @@ def demucs_ispectro(z, hop_length=None, length=None, pad=0):
 
     if is_other_gpu:
         z = z.cpu()
+
     x = th.istft(z,
                  n_fft,
                  hop_length,
@@ -156,8 +157,11 @@ def demucs_ispec(z, length=None, nfft=4096, scale=0):
     z = F.pad(z, (0, 0, 0, 1))
     z = F.pad(z, (2, 2))
     pad = hl // 2 * 3
+    # th.view_as_real(z).numpy().tofile("batch_z.bin")
+    # print(f"z.shape = {z.size()}")
     le = hl * int(math.ceil(length / hl)) + 2 * pad
     x = demucs_ispectro(z, hl, length=le)
+    # x.numpy().tofile("x.bin")
     x = x[..., pad: pad + length]
     return x
 
@@ -177,8 +181,15 @@ def demucs_post_process(m, xt, padded_m, segment, samplerate, B, S):
     training_length = int(segment * samplerate)
     x = demucs_ispec(zout, length=training_length)
 
+    
+    # m.numpy().tofile("m.bin")
+    # th.view_as_real(zout).numpy().tofile("zout.bin")
+
     meant = padded_m.mean(dim=(1, 2), keepdim=True)
     stdt = padded_m.std(dim=(1, 2), keepdim=True)
+
+    # print(f"padded_m.shape: {padded_m.shape}")
+    # print(f"meant.shape = {meant.shape}")
 
     xt = xt.view(B, S, -1, training_length)
     xt = xt * stdt[:, None] + meant[:, None]
