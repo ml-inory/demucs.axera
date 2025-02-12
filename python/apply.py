@@ -6,6 +6,9 @@ import torch
 from fractions import Fraction
 from cal_demucs import demucs_spec, demucs_magnitude, demucs_post_process
 import onnxruntime as ort
+import os
+import numpy as np
+import random
 
 
 def center_trim(tensor: torch.Tensor, reference: tp.Union[torch.Tensor, int]):
@@ -101,8 +104,21 @@ def apply_model(mix,
         future = run_model(model, chunk, device, samplerate, segment)
         # future.numpy().tofile(f"out_{chunk_index}.bin")
         futures.append((future, offset))
-        offset += segment_length
+        # offset += segment_length
         chunk_index += 1
+
+    # max_shift = int(0.5 * model.samplerate)
+    # mix = TensorChunk(mix)
+    # assert isinstance(mix, TensorChunk)
+    # padded_mix = mix.padded(length + 2 * max_shift)
+    # out = 0.
+    # shifts = 1
+    # for shift_idx in range(shifts):
+    #     offset = random.randint(0, max_shift)
+    #     shifted = TensorChunk(padded_mix, offset, length + max_shift - offset)
+    #     future = run_model(model, shifted, device, samplerate, segment)
+    #     out += future[..., max_shift - offset:]
+    # out /= shifts
 
     out = th.zeros(batch, len_model_sources, channels, length, device=mix.device)
     sum_weight = th.zeros(length, device=mix.device)
@@ -124,6 +140,7 @@ def apply_model(mix,
     return out
 
 
+# index = 0
 def run_model(model, mix, device, samplerate, segment):
     """
     :param model:
@@ -133,6 +150,8 @@ def run_model(model, mix, device, samplerate, segment):
     :param segment:
     :return:
     """
+    # global index
+
     length = mix.shape[-1]
     valid_length = int(segment * samplerate)
     mix = TensorChunk(mix)
@@ -144,44 +163,39 @@ def run_model(model, mix, device, samplerate, segment):
     z = demucs_spec(padded_mix)
     mag = demucs_magnitude(z).to(padded_mix.device)
     input2 = mag.numpy()
-    # print(f"preprocess take {time.time() - start}s  input shape: {padded_mix.shape}")
 
-    # th.view_as_real(z).numpy().tofile("z.bin")
-    # input1.tofile("input1.bin")
-    # input2.tofile("mag.bin")
+    input1 = (input1 - input1.mean()) / (input1.std() + 1e-5)
 
+    mean_mag = input2.mean()
+    std_mag = input2.std()
+    
+    input2 = (input2 - mean_mag) / (std_mag + 1e-5)
+
+    # input1.tofile(f"sim/mix/{index}.bin")
+    # input2.tofile(f"sim/mag/{index}.bin")
+    
     if isinstance(model, ort.InferenceSession):
         outputs = model.run(None, {"mix": input1, "mag": input2})
     else:
-        # start = time.time()
-        input_names = model.get_inputs()
-        output_names = model.get_outputs()
-        inputs = {input_names[0]: input1, input_names[1]: input2}
-        outputs = model.run(inputs)
-        # print(f"run take {1000 * (time.time() - start)}ms")
-
-    # import os
-    # os.makedirs("input", exist_ok=True)
-    # os.makedirs("gt", exist_ok=True)
-    # for i, name in enumerate(input_names):
-    #     inputs[name].tofile(os.path.join("input", f"input{i}_{chunk_index}.bin"))
-    # outputs[0].tofile(os.path.join("gt", f"output0_{chunk_index}.bin"))
-    # outputs[1].tofile(os.path.join("gt", f"output1_{chunk_index}.bin"))
+        outputs = model.run({"mix": input1, "mag": input2})
 
     if isinstance(model, ort.InferenceSession):
         x = th.from_numpy(outputs[0])
         xt = th.from_numpy(outputs[1])
     else:
-        x = th.from_numpy(outputs[output_names[0]])
-        xt = th.from_numpy(outputs[output_names[1]])
+        x = th.from_numpy(outputs["x"])
+        xt = th.from_numpy(outputs["xt"])
+
+    # x.numpy().astype(np.float32).tofile(f"sim/x/{index}.bin")
+    # xt.numpy().astype(np.float32).tofile(f"sim/xt/{index}.bin")
+    # index += 1
+
     S = 4  # len(self.source)
     B, C, Fq, T = input2.shape
 
-    # x.numpy().astype(np.float32).tofile("output0.bin")
-    # xt.numpy().astype(np.float32).tofile("output1.bin")
+    x = x.view(B, S, -1, Fq, T)
+    x = x * std_mag + mean_mag
 
-    # start = time.time()
     out = demucs_post_process(x, xt, padded_mix, segment, samplerate, B, S)
-    # print(f"postprocess take {1000 * (time.time() - start)}ms")
 
     return center_trim(out, length)

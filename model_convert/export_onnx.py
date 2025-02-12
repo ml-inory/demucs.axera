@@ -67,7 +67,8 @@ def generate_data(mix,
                 len_model_sources=4,
                 segment=Fraction(39, 5),
                 samplerate=44100,
-                save_path="calibration_dataset"
+                save_path="calibration_dataset",
+                max_num=-1
                 ) -> torch.Tensor:
     """
     :param mix:
@@ -100,12 +101,18 @@ def generate_data(mix,
     for offset in tqdm.tqdm(range(0, length, stride)):
         chunk = TensorChunk(mix, offset, segment_length)
 
+        chunk = TensorChunk(chunk)
         padded_mix = chunk.padded(segment_length).to(device)
 
         input1 = padded_mix.numpy()
         z = demucs_spec(padded_mix)
         mag = demucs_magnitude(z).to(padded_mix.device)
         input2 = mag.numpy()
+
+        input1 = (input1 - input1.mean()) / (input1.std() + 1e-5)
+        mean_mag = input2.mean()
+        std_mag = input2.std()
+        input2 = (input2 - mean_mag) / (std_mag + 1e-5)
 
         mix_filename = os.path.join(mix_path, f"{chunk_index}.npy")
         mag_filename = os.path.join(mag_path, f"{chunk_index}.npy")
@@ -115,29 +122,31 @@ def generate_data(mix,
         mix_files.add(mix_filename)
         mag_files.add(mag_filename)
 
-        # offset += segment_length
+        offset += segment_length
         chunk_index += 1
+        if max_num > 0 and chunk_index >= max_num:
+            print(f"Exceed max_num {max_num}, break")
+            break
 
     mix_files.close()
     mag_files.close()
 
     print(f"Saved dataset to {save_path}")
 
-
-def parse_args():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--input", "-i", type=str, required=True, help="Input audio in wav format")
-    return parser.parse_args()
+    return input2.shape
 
 
 def main():
-    args = parse_args()
     model_name = "htdemucs_ft"
     model = get_model(model_name).models[0]
 
     target_sr = 44100
     overlap = 0.25
-    input_audio = args.input
+    seconds_split = 1 # 输入长度，单位秒
+    # max_num = int(60 / seconds_split)
+    max_num = 60
+
+    input_audio = "../test.wav"
     wav, origin_sr = sf.read(input_audio, always_2d=True, dtype="float32")
     if origin_sr != target_sr:
         print(f"Origin sample rate is {origin_sr}, resampling to {target_sr}...")
@@ -151,20 +160,25 @@ def main():
     wav /= ref.std() + 1e-8
     wav = torch.from_numpy(wav)
 
-    generate_data(
+    input2_shape = generate_data(
         wav[None],
         overlap=overlap,
-        save_path="calibration_dataset"
+        save_path="calibration_dataset",
+        segment=seconds_split,
+        max_num=max_num
     )
 
     # Export ONNX
     model.forward = model.forward_for_export
 
     input_names = ("mix", "mag")
+    # output_names = ("drums_x","bass_x","other_x","vocals_x", "drums_xt","bass_xt","other_xt","vocals_xt")
     output_names = ("x", "xt")
+
+    segment_length = int(target_sr * seconds_split)
     inputs = (
-        torch.zeros(1,2,343980, dtype=torch.float32),
-        torch.zeros(1,4,2048,336, dtype=torch.float32),
+        torch.zeros(1,2,segment_length, dtype=torch.float32),
+        torch.zeros(*input2_shape, dtype=torch.float32),
     )
     onnx_name = model_name + ".onnx"
     torch.onnx.export(model,               # model being run

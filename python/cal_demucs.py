@@ -10,6 +10,7 @@ import math
 import typing as tp
 import torch as th
 from torch.nn import functional as F
+import numpy as np
 
 
 def pad1d(x: th.Tensor, paddings: tp.Tuple[int, int], mode: str = 'constant', value: float = 0.):
@@ -131,7 +132,6 @@ def demucs_ispectro(z, hop_length=None, length=None, pad=0):
 
     if is_other_gpu:
         z = z.cpu()
-
     x = th.istft(z,
                  n_fft,
                  hop_length,
@@ -141,7 +141,8 @@ def demucs_ispectro(z, hop_length=None, length=None, pad=0):
                  length=length,
                  center=True)
     _, length = x.shape
-    return x.view(*other, length)
+    x = x.view(*other, length)
+    return x
 
 
 def demucs_ispec(z, length=None, nfft=4096, scale=0):
@@ -157,14 +158,98 @@ def demucs_ispec(z, length=None, nfft=4096, scale=0):
     z = F.pad(z, (0, 0, 0, 1))
     z = F.pad(z, (2, 2))
     pad = hl // 2 * 3
-    # th.view_as_real(z).numpy().tofile("batch_z.bin")
-    # print(f"z.shape = {z.size()}")
     le = hl * int(math.ceil(length / hl)) + 2 * pad
     x = demucs_ispectro(z, hl, length=le)
-    # x.numpy().tofile("x.bin")
     x = x[..., pad: pad + length]
     return x
 
+import torch
+
+def create_sliding_windows(tensor, kernel_size):
+    """
+    创建滚动窗口视图，用于后续计算中值。
+
+    参数:
+    - tensor: 输入的一维张量 (length,)
+    - kernel_size: 中值滤波器的核大小，必须是奇数
+
+    返回:
+    - 滚动窗口视图 (new_length, kernel_size)
+    """
+    if kernel_size % 2 == 0:
+        raise ValueError("Kernel size must be odd.")
+
+    pad_width = kernel_size // 2
+    # 使用边缘填充以处理边界
+    padded_tensor = torch.nn.functional.pad(tensor.unsqueeze(0).unsqueeze(0), 
+                                            (pad_width, pad_width), mode='replicate').squeeze()
+
+    length = padded_tensor.shape[0]
+    new_length = length - kernel_size + 1
+    strides = padded_tensor.stride()
+
+    # 创建滚动窗口视图
+    windows = padded_tensor.as_strided(
+        size=(new_length, kernel_size),
+        stride=(strides[0], strides[0])
+    )
+
+    return windows
+
+def median_filter_1d(tensor, kernel_size=3):
+    """
+    对一维张量应用中值滤波。
+
+    参数:
+    - tensor: 输入的一维张量 (length,)
+    - kernel_size: 中值滤波器的核大小，必须是奇数
+
+    返回:
+    - 处理后的一维张量 (length,)
+    """
+    windows = create_sliding_windows(tensor, kernel_size)
+    # 计算每个窗口的中值
+    filtered_tensor, _ = torch.median(windows, dim=-1)
+    return filtered_tensor
+
+def apply_median_filter_centered_N(tensor, kernel_size=3, stride=1024, N=512):
+    """
+    对一个shape为(B, length)的torch.Tensor，每隔stride长度取中心点左右各N个数据做中值滤波
+
+    参数:
+    - tensor: 输入的torch.Tensor，形状为(B, length)
+    - kernel_size: 中值滤波器的核大小，默认为3
+    - stride: 每次处理的步长，默认为1024
+    - N: 每个切片的半径，默认为512
+
+    返回:
+    - 处理后的torch.Tensor
+    """
+    origin_shape = tensor.shape
+    tensor = tensor.view(-1, origin_shape[-1])
+
+    batch_size, length = tensor.shape
+    filtered_tensor = tensor.clone()  # 克隆原始张量以避免修改原始数据
+
+    for i in range(batch_size):
+        start = 0
+        while start < length:
+            center = min(start + stride // 2, length - 1)  # 确定中心点
+            segment_start = max(center - N, 0)
+            segment_end = min(center + N + 1, length)  # +1 是因为切片是左闭右开
+            
+            segment = tensor[i, segment_start:segment_end]
+            
+            if segment.shape[0] >= kernel_size:  # 确保有足够的数据来应用中值滤波
+                # 应用中值滤波
+                filtered_segment = median_filter_1d(segment, kernel_size=kernel_size)
+                
+                # 将过滤后的段放回原位置
+                filtered_tensor[i, segment_start:segment_end] = filtered_segment
+            
+            start += stride
+
+    return filtered_tensor.view(origin_shape)
 
 def demucs_post_process(m, xt, padded_m, segment, samplerate, B, S):
     """
@@ -181,15 +266,11 @@ def demucs_post_process(m, xt, padded_m, segment, samplerate, B, S):
     training_length = int(segment * samplerate)
     x = demucs_ispec(zout, length=training_length)
 
-    
-    # m.numpy().tofile("m.bin")
-    # th.view_as_real(zout).numpy().tofile("zout.bin")
+    # 滤波
+    x = apply_median_filter_centered_N(x, kernel_size=11, stride=1024, N=32)
 
     meant = padded_m.mean(dim=(1, 2), keepdim=True)
     stdt = padded_m.std(dim=(1, 2), keepdim=True)
-
-    # print(f"padded_m.shape: {padded_m.shape}")
-    # print(f"meant.shape = {meant.shape}")
 
     xt = xt.view(B, S, -1, training_length)
     xt = xt * stdt[:, None] + meant[:, None]

@@ -6,6 +6,7 @@ import soundfile as sf
 import librosa
 from apply import apply_model
 import torch
+# import torchaudio as ta
 
 
 def get_args():
@@ -14,6 +15,7 @@ def get_args():
     parser.add_argument("--output_path", "-o", type=str, required=False, default="./output", help="Seperated wav path")
     parser.add_argument("--model", "-m", type=str, required=False, default="../models/htdemucs_ft.onnx", help="demucs onnx model")
     parser.add_argument("--overlap", type=float, required=False, default=0.25)
+    parser.add_argument("--segment", type=float, required=False, default=1, help="Split in seconds")
     return parser.parse_args()
 
 
@@ -26,6 +28,7 @@ def main():
     input_audio = args.input_audio
     output_path = args.output_path
     model_path = args.model
+    segment = args.segment
 
     target_sr = 44100
 
@@ -49,25 +52,33 @@ def main():
 
     print("Preprocessing audio...")
     ref = wav.mean(0)
-    wav -= ref.mean()
-    wav /= ref.std() + 1e-8
+    ref_mean = ref.mean()
+    ref_std = ref.std() + 1e-8
+    wav -= ref_mean
+    wav /= ref_std
     wav = torch.from_numpy(wav)
+
+    # torch.manual_seed(0)
+    # wav = torch.rand(2, 2048, dtype=torch.float32)
+    # ref_mean = 0
+    # ref_std = 1
 
     print("Running model...")
     out = apply_model(
         wav[None],
         overlap=args.overlap,
         model=sess,
+        segment=segment
     )
 
     print("Postprocessing...")
-    out *= ref.std() + 1e-8
-    out += ref.mean()
-    wav *= ref.std() + 1e-8
-    wav += ref.mean()
+    out *= ref_std
+    out += ref_mean
+    wav *= ref_std
+    wav += ref_mean
 
     out = out.numpy()
-    print(out.shape)
+    # print(out.shape)
 
     sources = ['drums', 'bass', 'other', 'vocals']
     res = dict(zip(sources, out[0]))
@@ -78,6 +89,10 @@ def main():
             source = source.transpose()
         audio_path = os.path.join(output_path, f"{os.path.splitext(os.path.basename(input_audio))[0]}_{name}.wav")
         sf.write(audio_path, source, samplerate=target_sr)
+        # bits_per_sample = 32
+        # encoding = 'PCM_F'
+        # ta.save(audio_path, torch.from_numpy(source), sample_rate=target_sr,
+        #         encoding=encoding, bits_per_sample=bits_per_sample)
         print(f"Save {name} to {audio_path}")
 
 

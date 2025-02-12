@@ -15,6 +15,7 @@ def get_args():
     parser.add_argument("--output_path", "-o", type=str, required=False, default="./output", help="Seperated wav path")
     parser.add_argument("--model", "-m", type=str, required=False, default="../models/htdemucs_ft.axmodel", help="demucs onnx model")
     parser.add_argument("--overlap", type=float, required=False, default=0.25)
+    parser.add_argument("--segment", type=float, required=False, default=1, help="Split in seconds")
     return parser.parse_args()
 
 
@@ -27,6 +28,7 @@ def main():
     input_audio = args.input_audio
     output_path = args.output_path
     model_path = args.model
+    segment = args.segment
 
     target_sr = 44100
 
@@ -60,6 +62,7 @@ def main():
         wav[None],
         overlap=args.overlap,
         model=sess,
+        segment=segment
     )
 
     print("Postprocessing...")
@@ -75,8 +78,10 @@ def main():
     print("Saving audio...")
     for name, source in res.items():
         source = source / max(1.01 * np.abs(source).max(), 1)
+        
         if source.shape[1] != 2:
             source = source.transpose()
+
         audio_path = os.path.join(output_path, f"{os.path.splitext(os.path.basename(input_audio))[0]}_{name}.wav")
         sf.write(audio_path, source, samplerate=target_sr)
         print(f"Save {name} to {audio_path}")
