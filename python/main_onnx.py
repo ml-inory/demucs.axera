@@ -13,9 +13,9 @@ def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_audio", "-i", type=str, required=True, help="Input audio file(.wav)")
     parser.add_argument("--output_path", "-o", type=str, required=False, default="./output", help="Seperated wav path")
-    parser.add_argument("--model", "-m", type=str, required=False, default="../models/htdemucs_ft.onnx", help="demucs onnx model")
+    parser.add_argument("--model", "-m", type=str, required=False, default="../models/htdemucs.onnx", help="demucs onnx model")
     parser.add_argument("--overlap", type=float, required=False, default=0.25)
-    parser.add_argument("--segment", type=float, required=False, default=1, help="Split in seconds")
+    parser.add_argument("--segment", type=float, required=False, default=5, help="Split in seconds")
     return parser.parse_args()
 
 
