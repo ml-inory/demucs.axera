@@ -677,16 +677,16 @@ class HTDemucs(nn.Module):
         B, C, Fq, T = x.shape
 
         # unlike previous Demucs, we always normalize because it is easier.
-        mean = x.mean(dim=(1, 2, 3), keepdim=True)
-        std = x.std(dim=(1, 2, 3), keepdim=True)
-        x = (x - mean) / (1e-5 + std)
+        # mean = x.mean(dim=(1, 2, 3), keepdim=True)
+        # std = x.std(dim=(1, 2, 3), keepdim=True)
+        # x = (x - mean) / (1e-5 + std)
         # x will be the freq. branch input.
 
         # Prepare the time branch input.
         xt = mix
-        meant = xt.mean(dim=(1, 2), keepdim=True)
-        stdt = xt.std(dim=(1, 2), keepdim=True)
-        xt = (xt - meant) / (1e-5 + stdt)
+        # meant = xt.mean(dim=(1, 2), keepdim=True)
+        # stdt = xt.std(dim=(1, 2), keepdim=True)
+        # xt = (xt - meant) / (1e-5 + stdt)
 
         # okay, this is a giant mess I know...
         saved = []  # skip connections, freq.
@@ -758,6 +758,6 @@ class HTDemucs(nn.Module):
 
         S = len(self.sources)
         x = x.view(B, S, -1, Fq, T)
-        x = x * std[:, None] + mean[:, None]
+        # x = x * std[:, None] + mean[:, None]
 
         return x, xt

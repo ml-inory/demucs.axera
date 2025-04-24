@@ -14,6 +14,7 @@ from cal_demucs import *
 import os
 import tarfile
 import argparse
+from pathlib import Path
 
 
 class TensorChunk:
@@ -99,6 +100,9 @@ def generate_data(mix,
 
     chunk_index = 0
     for offset in tqdm.tqdm(range(0, length, stride)):
+        if offset == 0:
+            continue
+        
         chunk = TensorChunk(mix, offset, segment_length)
 
         chunk = TensorChunk(chunk)
@@ -137,14 +141,15 @@ def generate_data(mix,
 
 
 def main():
-    model_name = "htdemucs_ft"
+    model_name = "htdemucs"
+    # model = get_model("3ee1a65f", Path("./release_models"))
     model = get_model(model_name).models[0]
 
     target_sr = 44100
     overlap = 0.25
-    seconds_split = 1 # 输入长度，单位秒
+    seconds_split = 5 # Fraction(39, 5) # 输入长度，单位秒
     # max_num = int(60 / seconds_split)
-    max_num = 60
+    max_num = -1
 
     input_audio = "../test.wav"
     wav, origin_sr = sf.read(input_audio, always_2d=True, dtype="float32")
@@ -188,7 +193,7 @@ def main():
         opset_version=16,          # the ONNX version to export the model to
         do_constant_folding=True,  # whether to execute constant folding for optimization
         input_names = input_names, # the model's input names
-        output_names = output_names # the model's output names
+        output_names = output_names, # the model's output names
     )
     sim_model,_ = simplify(onnx_name)
     onnx.save(sim_model, onnx_name)

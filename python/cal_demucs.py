@@ -11,7 +11,14 @@ import typing as tp
 import torch as th
 from torch.nn import functional as F
 import numpy as np
+import torch
 
+# 预计算窗口函数
+NFFT = 4096
+hann_window = th.hann_window(NFFT)
+
+# 设置多线程
+th.set_num_threads(8)  # 根据 CPU 核心数调整
 
 def pad1d(x: th.Tensor, paddings: tp.Tuple[int, int], mode: str = 'constant', value: float = 0.):
     """
@@ -57,14 +64,13 @@ def spectro(x, n_fft=512, hop_length=None, pad=0):
     z = th.stft(x,
                 n_fft * (1 + pad),
                 hop_length or n_fft // 4,
-                window=th.hann_window(n_fft).to(x),
+                window=hann_window,
                 win_length=n_fft,
                 normalized=True,
                 center=True,
                 return_complex=True,
                 pad_mode='reflect')
     _, freqs, frame = z.shape
-    # print(f"z.shape = {z.shape}")
     return z.view(*other, freqs, frame)
 
 
@@ -82,8 +88,10 @@ def demucs_spec(x, nfft=4096):
     le = int(math.ceil(x.shape[-1] / hl))
     pad = hl // 2 * 3
     x = pad1d(x, (pad, pad + le * hl - x.shape[-1]), mode="reflect")
+    # print(f"spec: x.shape = {x.shape}")
 
     z = spectro(x, nfft, hl)[..., :-1, :]
+    # print(f"z.shape = {z.shape}")
     assert z.shape[-1] == le + 4, (z.shape, x.shape, le)
     z = z[..., 2: 2 + le]
     return z
@@ -125,7 +133,8 @@ def demucs_ispectro(z, hop_length=None, length=None, pad=0):
     """
     *other, freqs, frames = z.shape
     n_fft = 2 * freqs - 2
-    z = z.view(-1, freqs, frames)
+    z = z.view(-1, freqs, frames).contiguous()
+    
     win_length = n_fft // (1 + pad)
 
     device_type = z.device.type
@@ -137,6 +146,7 @@ def demucs_ispectro(z, hop_length=None, length=None, pad=0):
                  n_fft,
                  hop_length,
                  window=th.hann_window(win_length).to(z.real),
+                #  window=window.float(),
                  win_length=win_length,
                  normalized=True,
                  length=length,
