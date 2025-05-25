@@ -103,7 +103,7 @@ def set_state(model, state, quantizer=None):
             from diffq import restore_quantized_state
             restore_quantized_state(model, state)
     else:
-        model.load_state_dict(state)
+        model.load_state_dict(state, strict=False)
     return state
 
 

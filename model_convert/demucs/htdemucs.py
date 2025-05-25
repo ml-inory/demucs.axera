@@ -22,6 +22,7 @@ from .demucs import rescale_module
 from .states import capture_init
 from .spec import spectro, ispectro
 from .hdemucs import pad1d, ScaledEmbedding, HEncLayer, MultiWrap, HDecLayer
+from .stft_process import STFT_Process
 
 
 class HTDemucs(nn.Module):
@@ -247,6 +248,15 @@ class HTDemucs(nn.Module):
         self.tencoder = nn.ModuleList()
         self.tdecoder = nn.ModuleList()
 
+        self.stft_module = STFT_Process(model_type="stft_B",
+                           n_fft=self.nfft,
+                           hop_len=self.hop_length,
+                           window_type="hann")
+        self.istft_module = STFT_Process(model_type="istft_B",
+                            n_fft=self.nfft,
+                            hop_len=self.hop_length,
+                            window_type="hann")
+
         chin = audio_channels
         chin_z = chin  # number of channels for the freq branch
         if self.cac:
@@ -438,6 +448,21 @@ class HTDemucs(nn.Module):
         assert z.shape[-1] == le + 4, (z.shape, x.shape, le)
         z = z[..., 2: 2 + le]
         return z
+    
+    def _spec_conv(self, x):
+        le = int(math.ceil(x.shape[-1] / self.hop_length))
+        pad = self.hop_length // 2 * 3
+        mix_padded = pad1d(x, (pad, pad + le * self.hop_length - x.shape[-1]), mode="reflect")
+
+        real_part, imag_part = self.stft_module.forward(mix_padded.permute(1, 0, 2), "reflect")
+        real_part = real_part.unsqueeze(1)
+        imag_part = imag_part.unsqueeze(1)
+        z = torch.concat((real_part, imag_part), dim=1)
+        C, _, Fr, T = z.shape
+        z = z.reshape(-1, Fr, T).unsqueeze(0)
+        z = z[..., :-1, 2 : 2 + le]
+        z = z / math.sqrt(self.nfft)
+        return z
 
     def _ispec(self, z, length=None, scale=0):
         hl = self.hop_length // (4**scale)
@@ -447,6 +472,40 @@ class HTDemucs(nn.Module):
         le = hl * int(math.ceil(length / hl)) + 2 * pad
         x = ispectro(z, hl, length=le)
         x = x[..., pad: pad + length]
+        return x
+    
+    def _ispec_conv(self, x, length):
+        # mask
+        B, S, C, Fr, T = x.shape
+        zout = x.view(B, S, -1, 2, Fr, T).permute(0, 1, 2, 4, 5, 3)
+        # zout = torch.view_as_complex(zout.contiguous())
+        # print(f"x.size() = {x.shape}")
+        # print(f"zout.size() = {zout.size()}")
+
+        # ispectro
+        hl = self.hop_length
+        z = F.pad(zout, (0, 0, 0, 0, 0, 1))
+        z = F.pad(z, (0, 0, 2, 2))
+        pad = hl // 2 * 3
+        le = hl * int(math.ceil(length / hl)) + 2 * pad
+
+        *other, freqs, frames, _ = z.shape
+        n_fft = 2 * freqs - 2
+        z = z.view(-1, freqs, frames, 2)
+
+        z_real = z[..., 0]
+        z_imag = z[..., 1]
+        mag = torch.sqrt(torch.pow(z_real, 2) + torch.pow(z_imag, 2))
+        # print(f"z_real.size = {z_real.size()}")
+        # print(f"z_imag.size = {z_imag.size()}")
+        # print(f"mag.size = {mag.size()}")
+
+        x = self.istft_module.forward(mag, z_real, z_imag).squeeze(1)
+        _, le = x.shape
+        x = x.view(*other, le)
+        x = x[..., pad: pad + length]
+
+        x = x * math.sqrt(self.nfft)
         return x
 
     def _magnitude(self, z):
@@ -535,9 +594,10 @@ class HTDemucs(nn.Module):
                 if mix.shape[-1] < training_length:
                     length_pre_pad = mix.shape[-1]
                     mix = F.pad(mix, (0, training_length - length_pre_pad))
-        z = self._spec(mix)
-        mag = self._magnitude(z).to(mix.device)
-        x = mag
+        # z = self._spec(mix)
+        # mag = self._magnitude(z).to(mix.device)
+        # x = mag
+        x = self._spec_conv(mix)
 
         B, C, Fq, T = x.shape
 
@@ -633,14 +693,15 @@ class HTDemucs(nn.Module):
         if x_is_mps:
             x = x.cpu()
 
-        zout = self._mask(z, x)
-        if self.use_train_segment:
-            if self.training:
-                x = self._ispec(zout, length)
-            else:
-                x = self._ispec(zout, training_length)
-        else:
-            x = self._ispec(zout, length)
+        # zout = self._mask(z, x)
+        # if self.use_train_segment:
+        #     if self.training:
+        #         x = self._ispec(zout, length)
+        #     else:
+        #         x = self._ispec(zout, training_length)
+        # else:
+        #     x = self._ispec(zout, length)
+        x = self._ispec_conv(x, length)
 
         # back to mps device
         if x_is_mps:
@@ -654,6 +715,8 @@ class HTDemucs(nn.Module):
         else:
             xt = xt.view(B, S, -1, length)
         xt = xt * stdt[:, None] + meant[:, None]
+
+        # print(f"x.shape: {x.size()}  xt.shape: {xt.size()}")
         x = xt + x
         if length_pre_pad:
             x = x[..., :length_pre_pad]

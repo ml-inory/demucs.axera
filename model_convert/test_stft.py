@@ -14,11 +14,11 @@ PAD_MODE = "reflect"
 # demucs
 htdemucs = get_model("htdemucs").models[0]
 # fake input
-fake_stft_input = torch.randn((1, 2, 44100), dtype=torch.float32)
+fake_stft_input = torch.randn((1, 2, int(5 * 44100)), dtype=torch.float32)
 
 
 # =========== test htdemucs ===========
-htdemucs(fake_stft_input)
+# htdemucs(fake_stft_input)
 
 # =========== stft ============
 # z = htdemucs._spec(fake_stft_input)
@@ -73,7 +73,7 @@ le = hl * int(math.ceil(length / hl)) + 2 * pad
 *other, freqs, frames = z.shape
 n_fft = 2 * freqs - 2
 z = z.view(-1, freqs, frames)
-# print(f"z.size = {z.size()}")
+print(f"z.size = {z.size()}")
 
 istft_module = STFT_Process(model_type="istft_A",
                             n_fft=n_fft,
@@ -83,6 +83,7 @@ x = istft_module.forward(z.abs(), z.angle()).squeeze(1)
 print(f"x.size() = {x.size()}")
 _, le = x.shape
 x = x.view(*other, le)
+print(f"pad = {pad} length = {length}")
 x = x[..., pad: pad + length]
 print(f"istft output.shape = {x.size()}")
 

@@ -151,39 +151,40 @@ def main():
     # max_num = int(60 / seconds_split)
     max_num = -1
 
-    input_audio = "../test.wav"
-    wav, origin_sr = sf.read(input_audio, always_2d=True, dtype="float32")
-    if origin_sr != target_sr:
-        print(f"Origin sample rate is {origin_sr}, resampling to {target_sr}...")
-        wav = librosa.resample(wav, orig_sr=origin_sr, target_sr=target_sr)
+    # input_audio = "../test.wav"
+    # wav, origin_sr = sf.read(input_audio, always_2d=True, dtype="float32")
+    # if origin_sr != target_sr:
+    #     print(f"Origin sample rate is {origin_sr}, resampling to {target_sr}...")
+    #     wav = librosa.resample(wav, orig_sr=origin_sr, target_sr=target_sr)
 
-    if wav.shape[0] != 2:
-        wav = wav.transpose()
+    # if wav.shape[0] != 2:
+    #     wav = wav.transpose()
 
-    ref = wav.mean(0)
-    wav -= ref.mean()
-    wav /= ref.std() + 1e-8
-    wav = torch.from_numpy(wav)
+    # ref = wav.mean(0)
+    # wav -= ref.mean()
+    # wav /= ref.std() + 1e-8
+    # wav = torch.from_numpy(wav)
 
-    input2_shape = generate_data(
-        wav[None],
-        overlap=overlap,
-        save_path="calibration_dataset",
-        segment=seconds_split,
-        max_num=max_num
-    )
+    # input2_shape = generate_data(
+    #     wav[None],
+    #     overlap=overlap,
+    #     save_path="calibration_dataset",
+    #     segment=seconds_split,
+    #     max_num=max_num
+    # )
 
     # Export ONNX
-    model.forward = model.forward_for_export
+    # model.forward = model.forward_for_export
+    model.use_train_segment = False
 
-    input_names = ("mix", "mag")
+    input_names = ("mix", )
     # output_names = ("drums_x","bass_x","other_x","vocals_x", "drums_xt","bass_xt","other_xt","vocals_xt")
-    output_names = ("x", "xt")
+    output_names = ("x", )
 
     segment_length = int(target_sr * seconds_split)
     inputs = (
         torch.zeros(1,2,segment_length, dtype=torch.float32),
-        torch.zeros(*input2_shape, dtype=torch.float32),
+        # torch.zeros(*input2_shape, dtype=torch.float32),
     )
     onnx_name = model_name + ".onnx"
     torch.onnx.export(model,               # model being run
