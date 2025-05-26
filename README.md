@@ -21,12 +21,12 @@ pip3 install -r requirements.txt
 
 运行(axmodel)
 ```
-python3 main.py -i 输入音频文件 -o 输出音频文件 -m AX模型
+python3 main.py -i 输入音频文件 -m AX模型 --segment 模型输入是几秒的
 ```
 
 运行(onnx)
 ```
-python3 main_onnx.py -i 输入音频文件 -o 输出音频文件 -m ONNX模型
+python3 main_onnx.py -i 输入音频文件 -m ONNX模型 --segment 模型输入是几秒的
 ```
 
 ## Cpp运行

@@ -145,7 +145,7 @@ def demucs_ispectro(z, hop_length=None, length=None, pad=0):
     x = th.istft(z,
                  n_fft,
                  hop_length,
-                 window=th.hann_window(win_length).to(z.real),
+                 window=hann_window,
                 #  window=window.float(),
                  win_length=win_length,
                  normalized=True,

@@ -81,7 +81,7 @@ def main():
         #     MNNWrapper("./models/htdemucs_decoder_freq.mnn"),
         #     MNNWrapper("./models/htdemucs_decoder_time.mnn"),
         # ]
-        sess = InferenceSession("../model_convert/htdemucs/quant/quant_axmodel.onnx")
+        sess = InferenceSession("../model_convert/htdemucs_5s/quant/quant_axmodel.onnx", run_mode=1)
         # sess = ort.InferenceSession("../models/apollo_sim.onnx", sess_options, providers=['CPUExecutionProvider'])
 
 

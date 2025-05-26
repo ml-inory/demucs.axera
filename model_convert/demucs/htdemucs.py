@@ -464,6 +464,24 @@ class HTDemucs(nn.Module):
         z = z / math.sqrt(self.nfft)
         return z
 
+    def _spec_conv(self, x):
+        hl = self.hop_length
+        nfft = self.nfft
+
+        le = int(math.ceil(x.shape[-1] / hl))
+        pad = hl // 2 * 3
+        mix_padded = pad1d(x, (pad, pad + le * hl - x.shape[-1]), mode="reflect")
+
+        real_part, imag_part = self.stft_module.forward(mix_padded.permute(1, 0, 2), "reflect")
+        real_part = real_part.unsqueeze(1)
+        imag_part = imag_part.unsqueeze(1)
+        z = torch.concat((real_part, imag_part), dim=1)
+        C, _, Fr, T = z.shape
+        z = z.reshape(-1, Fr, T).unsqueeze(0)
+        z = z[..., :-1, 2 : 2 + le]
+        z = z / math.sqrt(nfft)
+        return z
+
     def _ispec(self, z, length=None, scale=0):
         hl = self.hop_length // (4**scale)
         z = F.pad(z, (0, 0, 0, 1))
@@ -504,6 +522,35 @@ class HTDemucs(nn.Module):
         _, le = x.shape
         x = x.view(*other, le)
         x = x[..., pad: pad + length]
+
+        x = x * math.sqrt(self.nfft)
+        return x
+
+    def _ispec_conv(self, x, length=None, scale=0):
+        # mask
+        B, S, C, Fr, T = x.shape
+        zout = x.view(B, S, -1, 2, Fr, T).permute(0, 1, 2, 4, 5, 3)
+        zout = torch.view_as_complex(zout.contiguous())
+        # print(f"zout.size() = {zout.size()}")
+
+        # ispectro
+        hl = self.hop_length // (4**scale)
+        z = F.pad(zout, (0, 0, 0, 1))
+        z = F.pad(z, (2, 2))
+        pad = hl // 2 * 3
+        le = hl * int(math.ceil(x.shape[-1] / hl)) + 2 * pad
+
+        *other, freqs, frames = z.shape
+        n_fft = 2 * freqs - 2
+        z = z.view(-1, freqs, frames)
+        # print(f"z.size = {z.size()}")
+
+        x = self.istft_module.forward(z.abs(), z.angle()).squeeze(1)
+        # print(f"x.size() = {x.size()}")
+        _, le = x.shape
+        x = x.view(*other, le)
+        x = x[..., pad: pad + length]
+        # print(f"istft output.shape = {x.size()}")
 
         x = x * math.sqrt(self.nfft)
         return x
@@ -701,7 +748,7 @@ class HTDemucs(nn.Module):
         #         x = self._ispec(zout, training_length)
         # else:
         #     x = self._ispec(zout, length)
-        x = self._ispec_conv(x, length)
+        x = self._ispec_conv(x, mix.shape[-1])
 
         # back to mps device
         if x_is_mps:
@@ -821,6 +868,129 @@ class HTDemucs(nn.Module):
 
         S = len(self.sources)
         x = x.view(B, S, -1, Fq, T)
+        # x = x * std[:, None] + mean[:, None]
+
+        return x, xt
+
+
+    def forward_encoder(self, mix, mag):
+        length = mix.shape[-1]
+        length_pre_pad = None
+        x = mag
+
+        B, C, Fq, T = x.shape
+
+        xt = mix
+        # okay, this is a giant mess I know...
+        saved = []  # skip connections, freq.
+        saved_t = []  # skip connections, time.
+        lengths = []  # saved lengths to properly remove padding, freq branch.
+        lengths_t = []  # saved lengths for time branch.
+        for idx, encode in enumerate(self.encoder):
+            lengths.append(x.shape[-1])
+            inject = None
+            if idx < len(self.tencoder):
+                # we have not yet merged branches.
+                lengths_t.append(xt.shape[-1])
+                tenc = self.tencoder[idx]
+                xt = tenc(xt)
+                if not tenc.empty:
+                    # save for skip connection
+                    saved_t.append(xt)
+                else:
+                    # tenc contains just the first conv., so that now time and freq.
+                    # branches have the same shape and can be merged.
+                    inject = xt
+            x = encode(x, inject)
+            if idx == 0 and self.freq_emb is not None:
+                # add frequency embedding to allow for non equivariant convolutions
+                # over the frequency axis.
+                frs = torch.arange(x.shape[-2], device=x.device)
+                emb = self.freq_emb(frs).t()[None, :, :, None].expand_as(x)
+                x = x + self.freq_emb_scale * emb
+
+            saved.append(x)
+
+        if self.crosstransformer:
+            if self.bottom_channels:
+                b, c, f, t = x.shape
+                x = rearrange(x, "b c f t-> b c (f t)")
+                x = self.channel_upsampler(x)
+                x = rearrange(x, "b c (f t)-> b c f t", f=f)
+                xt = self.channel_upsampler_t(xt)
+
+            x, xt = self.crosstransformer(x, xt)
+
+            if self.bottom_channels:
+                x = rearrange(x, "b c f t-> b c (f t)")
+                x = self.channel_downsampler(x)
+                x = rearrange(x, "b c (f t)-> b c f t", f=f)
+                xt = self.channel_downsampler_t(xt)
+
+        # for idx, decode in enumerate(self.decoder):
+        #     # skip = saved.pop(-1)
+        #     # x, pre = decode(x, skip, lengths.pop(-1))
+        #     # `pre` contains the output just before final transposed convolution,
+        #     # which is used when the freq. and time branch separate.
+
+        #     offset = self.depth - len(self.tdecoder)
+        #     if idx >= offset:
+        #         tdec = self.tdecoder[idx - offset]
+        #         length_t = lengths_t.pop(-1)
+        #         if tdec.empty:
+        #             assert pre.shape[2] == 1, pre.shape
+        #             pre = pre[:, :, 0]
+        #             xt, _ = tdec(pre, None, length_t)
+        #         else:
+        #             skip = saved_t.pop(-1)
+        #             xt, _ = tdec(xt, skip, length_t)
+
+        # print(f"saved: {len(saved)}")
+        # print(f"saved_t: {len(saved_t)}")
+        print(f"lengths: {lengths}")
+        print(f"lengths_t: {lengths_t}")
+        print(f"x.shape = {x.shape}")
+        print(f"xt.shape = {xt.shape}")
+        for i in range(len(saved)):
+            print(f"saved[{i}].shape = {saved[i].shape}")
+            print(f"saved_t[{i}].shape = {saved_t[i].shape}")
+        return x, xt, *saved, *saved_t
+
+    def forward_decoder(self, x, xt, 
+            saved_0, saved_1, saved_2, saved_3, 
+            saved_t_0, saved_t_1, saved_t_2, saved_t_3
+            ):
+        saved = [saved_0, saved_1, saved_2, saved_3]  # skip connections, freq.
+        saved_t = [saved_t_0, saved_t_1, saved_t_2, saved_t_3]  # skip connections, time.
+        lengths = [torch.IntTensor([216]), torch.IntTensor([216]),torch.IntTensor([216]),torch.IntTensor([216])]  # saved lengths to properly remove padding, freq branch.
+        lengths_t = [torch.IntTensor([220500]), torch.IntTensor([55125]), torch.IntTensor([13782]), torch.IntTensor([3446])]
+        # lengths_t = [torch.IntTensor([220500]), ]
+
+        for idx, decode in enumerate(self.decoder):
+            skip = saved.pop(-1)
+            x, pre = decode(x, skip, lengths.pop(-1))
+            # `pre` contains the output just before final transposed convolution,
+            # which is used when the freq. and time branch separate.
+
+            offset = self.depth - len(self.tdecoder)
+            if idx >= offset:
+                tdec = self.tdecoder[idx - offset]
+                length_t = lengths_t.pop(-1)
+                if tdec.empty:
+                    assert pre.shape[2] == 1, pre.shape
+                    pre = pre[:, :, 0]
+                    xt, _ = tdec(pre, None, length_t)
+                else:
+                    skip = saved_t.pop(-1)
+                    xt, _ = tdec(xt, skip, length_t)
+
+        # Let's make sure we used all stored skip connections.
+        assert len(saved) == 0
+        assert len(lengths_t) == 0
+        assert len(saved_t) == 0
+
+        S = len(self.sources)
+        x = x.view(1, S, -1, 2048, 216)
         # x = x * std[:, None] + mean[:, None]
 
         return x, xt

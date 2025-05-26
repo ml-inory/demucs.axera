@@ -268,10 +268,15 @@ def run_model(model, mix, device, samplerate, segment):
     # x = th.from_numpy(np.load(f"x_{index}.npy")) # x有梳子噪声
     # xt = th.from_numpy(np.load(f"xt_{index}.npy"))
 
-    # np.save(f"mix_{index}.npy", input1)
-    # np.save(f"mag_{index}.npy", input2)
-    # np.save(f"x_{index}.npy", x.numpy())
-    # np.save(f"xt_{index}.npy", xt.numpy())
+    # np.save(f"test_data/input/mix/{index}.npy", input1)
+    # np.save(f"test_data/input/mag/{index}.npy", input2)
+    # np.save(f"test_data/output/x/{index}.npy", x.numpy())
+    # np.save(f"xt_gt/{index}.npy", xt.numpy())
+    # if index == 0:
+    #     input1.tofile(f"../model_convert/test_data/input/mix.bin")
+    #     input2.tofile(f"../model_convert/test_data/input/mag.bin")
+    #     x.numpy().tofile(f"../model_convert/test_data/output/x.bin")
+    #     xt.numpy().tofile(f"../model_convert/test_data/output/xt.bin")
 
     # np.save(f"mix_quant_{index}.npy", input1)
     # np.save(f"mag_quant_{index}.npy", input2)

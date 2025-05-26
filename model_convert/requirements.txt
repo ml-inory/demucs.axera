@@ -1,3 +1,4 @@
+numpy<2.0
 dora-search>=0.1.12
 diffq>=0.2.1
 einops
@@ -11,11 +12,12 @@ mypy
 openunmix
 pyyaml
 submitit
-torch>=1.8.1
-torchaudio>=0.8
+torch>=1.8.1,<2.0
+torchaudio>=0.8,<2.1
 tqdm
 treetable
 soundfile>=0.10.3
 onnx>=1.16.0
 onnxsim==0.4.36
 librosa
+onnxruntime
