@@ -6,15 +6,15 @@
     "input_configs": [
       {
         "tensor_name": "mix",
-        "calibration_dataset": "/data/yangrongzhao/Codes/demucs.axera/model_convert/calibration_dataset/mix.tar.gz",
+        "calibration_dataset": "./calibration_dataset/mix.tar.gz",
         "calibration_format": "Numpy",
-        "calibration_size": -1
+        "calibration_size": 1
       },
       {
         "tensor_name": "mag",
-        "calibration_dataset": "/data/yangrongzhao/Codes/demucs.axera/model_convert/calibration_dataset/mag.tar.gz",
+        "calibration_dataset": "./calibration_dataset/mag.tar.gz",
         "calibration_format": "Numpy",
-        "calibration_size": -1
+        "calibration_size": 1
       }
     ],
     "layer_configs": [
@@ -23,269 +23,61 @@
 	    "end_tensor_names": ["DEFAULT"],
 	    "data_type": "U16"
 	    },
-      // {
-      //   "op_type": "Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "op_type": "ConvTranspose",
-      //   "data_type": "U16",
-      //   "weight_data_type": "U16",
-      //   "output_data_type": "U16"
-      // },
+      {
+        "op_type": "Conv",
+        "data_type": "U16",
+        "weight_data_type": "U16",
+        "output_data_type": "U16"
+      },
+      {
+        "op_type": "ConvTranspose",
+        "data_type": "U16",
+        "weight_data_type": "U16",
+        "output_data_type": "U16"
+      },
       {
         "layer_name": "/encoder.0/conv/Conv",
         "data_type": "FP32",
         "weight_data_type": "FP32",
         "output_data_type": "FP32"
       },
-      // {
-      //   "layer_name": "/encoder.1/conv/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/encoder.2/conv/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/encoder.3/conv/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-
-      // {
-      //   "layer_name": "/encoder.0/rewrite/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/encoder.1/rewrite/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/encoder.2/rewrite/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/encoder.3/rewrite/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-
-      // {
-      //   "layer_names": ["/encoder.0/dconv/layers.0/layers.0.0/Conv", "/encoder.0/dconv/layers.0/layers.0.3/Conv", "/encoder.0/dconv/layers.1/layers.1.0/Conv", "/encoder.0/dconv/layers.1/layers.1.3/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/encoder.1/dconv/layers.0/layers.0.0/Conv", "/encoder.1/dconv/layers.0/layers.0.3/Conv", "/encoder.1/dconv/layers.1/layers.1.0/Conv", "/encoder.1/dconv/layers.1/layers.1.3/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/encoder.2/dconv/layers.0/layers.0.0/Conv", "/encoder.2/dconv/layers.0/layers.0.3/Conv", "/encoder.2/dconv/layers.1/layers.1.0/Conv", "/encoder.2/dconv/layers.1/layers.1.3/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/encoder.3/dconv/layers.0/layers.0.0/Conv", "/encoder.3/dconv/layers.0/layers.0.3/Conv", "/encoder.3/dconv/layers.1/layers.1.0/Conv", "/encoder.3/dconv/layers.1/layers.1.3/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-
 
       // time branch
-      // {
-      //   "layer_name": "/tencoder.0/conv/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/tencoder.1/conv/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/tencoder.2/conv/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/tencoder.3/conv/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-
-      // {
-      //   "layer_name": "/tencoder.0/rewrite/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/tencoder.1/rewrite/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/tencoder.2/rewrite/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_name": "/tencoder.3/rewrite/Conv",
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-
-      // cross
-      // {
-      //   "layer_names": ["/channel_upsampler/Conv", "/channel_downsampler/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-
-      // decoder
-      // {
-      //   "layer_names": ["/decoder.0/rewrite/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/decoder.1/rewrite/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/decoder.2/rewrite/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/decoder.3/rewrite/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-
-      // {
-      //   "layer_names": ["/decoder.0/dconv/layers.0/layers.0.0/Conv", "/decoder.0/dconv/layers.0/layers.0.3/Conv", "/decoder.0/dconv/layers.1/layers.1.0/Conv", "/decoder.0/dconv/layers.1/layers.1.3/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/decoder.1/dconv/layers.0/layers.0.0/Conv", "/decoder.1/dconv/layers.0/layers.0.3/Conv", "/decoder.1/dconv/layers.1/layers.1.0/Conv", "/decoder.1/dconv/layers.1/layers.1.3/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/decoder.2/dconv/layers.0/layers.0.0/Conv", "/decoder.2/dconv/layers.0/layers.0.3/Conv", "/decoder.2/dconv/layers.1/layers.1.0/Conv", "/decoder.2/dconv/layers.1/layers.1.3/Conv"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
       {
-        "layer_names": ["/decoder.3/dconv/layers.0/layers.0.0/Conv", "/decoder.3/dconv/layers.0/layers.0.3/Conv", ],
+        "layer_name": "/tencoder.0/conv/Conv",
+        "data_type": "FP32",
+        "weight_data_type": "FP32",
+        "output_data_type": "FP32"
+      },
+      {
+        "layer_names": ["/decoder.3/dconv/layers.0/layers.0.0/Conv", "/decoder.3/dconv/layers.0/layers.0.3/Conv", "/decoder.3/dconv/layers.1/layers.1.0/Conv", "/decoder.3/dconv/layers.1/layers.1.3/Conv"],
         "data_type": "FP32",
         "weight_data_type": "FP32",
         "output_data_type": "FP32"
       },
 
-      // {
-      //   "op_types": ["GroupNormalization", "LayerNormalization"],
-      //   "data_type": "FP32"
-      // },
+      {
+        "op_types": ["GroupNormalization", ],
+        "data_type": "U16"
+      },
 
-      // convtranspose
-      // {
-      //   "layer_names": ["/decoder.0/conv_tr/ConvTranspose"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/decoder.1/conv_tr/ConvTranspose"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/decoder.2/conv_tr/ConvTranspose"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "layer_names": ["/decoder.3/conv_tr/ConvTranspose"],
-      //   "data_type": "FP32",
-      //   "weight_data_type": "FP32",
-      //   "output_data_type": "FP32"
-      // },
-      // {
-      //   "op_types": ["Mul", "Add"],
-      //   "data_type": "FP32"
-      // },
-      // {
-      //   "start_tensor_names": ["/decoder.0/Add_output_0"],
-      //   "end_tensor_names": ["x"],
-      //   "data_type": "FP32"
-      // },
-      // {
-      //   "start_tensor_names": ["mag"],
-      //   "end_tensor_names": ["/encoder.3/Mul_2_output_0"],
-      //   "data_type": "FP32"
-      // },
-      // {
-      //   "start_tensor_names": ["mag"],
-      //   "end_tensor_names": ["x"],
-      //   "data_type": "FP32"
-      // },
+      {
+        "layer_names": ["/decoder.3/conv_tr/ConvTranspose"],
+        "data_type": "FP32",
+        "weight_data_type": "FP32",
+        "output_data_type": "FP32"
+      },
 	    {
         "op_types": ["MatMul", "FullyConnected"],
         "data_type": "S16"
 	    }
     ],
     "calibration_method": "MinMax",
-    "enable_smooth_quant": true,
     "conv_bias_data_type": "FP32",
     "disable_auto_refine_scale": true,
     "precision_analysis": true,
     "precision_analysis_method": "EndToEnd",
-    "transformer_opt_level": 1,
-    // "enable_adaround": true,
-    // "fitune_epochs": 2000,
-    // "fitune_block_size": 3,
-    // "fitune_lr": 1e-5
+    "transformer_opt_level": 1
   },
   "input_processors": [
     {
