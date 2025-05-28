@@ -10,8 +10,6 @@ import numpy as np
 import time
 import sys
 
-# from mnn_wrapper import MNNWrapper
-
 
 def center_trim(tensor: torch.Tensor, reference: tp.Union[torch.Tensor, int]):
     ref_size: int
@@ -126,7 +124,6 @@ def apply_model(mix,
     return out
 
 
-index = 0
 def run_model(model, mix, device, samplerate, segment):
     """
     :param model:
@@ -136,8 +133,6 @@ def run_model(model, mix, device, samplerate, segment):
     :param segment:
     :return:
     """
-    global index
-
     length = mix.shape[-1]
     valid_length = int(segment * samplerate)
     mix = TensorChunk(mix)
@@ -147,11 +142,9 @@ def run_model(model, mix, device, samplerate, segment):
     start = time.time()
     input1 = padded_mix.numpy()
     z = demucs_spec(padded_mix)
-    # print(f"z.shape = {z.shape}")
     mag = demucs_magnitude(z).to(padded_mix.device)
-    # print(f"mag.shape = {mag.shape}")
     input2 = mag.numpy()
-    print(f"preprocess take {time.time() - start}s")
+    # print(f"preprocess take {time.time() - start}s")
 
     input1 = (input1 - input1.mean()) / (input1.std() + 1e-5)
 
@@ -160,139 +153,25 @@ def run_model(model, mix, device, samplerate, segment):
     
     input2 = (input2 - mean_mag) / (std_mag + 1e-5)
 
-    # input1.tofile(f"sim/mix/{index}.bin")
-    # input2.tofile(f"sim/mag/{index}.bin")
-    
-    if isinstance(model, list):
-        pass
-        # if len(model) == 4:
-        #     model_encoder_freq, model_time, model_decoder_freq, model_decoder_time = model
-        # elif len(model) == 3:
-        #     model_encoder_freq, model_time, model_decoder_freq = model
-
-        # start = time.time()
-        # if isinstance(model_encoder_freq, ort.InferenceSession):
-        #     saved_0, saved_1, saved_2, saved_3 = model_encoder_freq.run(output_names=None, input_feed={"mag": input2})
-        #     x = saved_3
-        # # elif isinstance(model_encoder_freq, NCNNWrapper):
-        # #     saved_0, saved_1, saved_2, saved_3 = model_encoder_freq.run(["saved_0", "saved_1", "saved_2", "saved_3"], {"mag": input2})
-        # #     x = saved_3
-        # elif isinstance(model_encoder_freq, MNNWrapper):
-        #     outputs = model_encoder_freq.run({"mag": input2})
-        #     saved_0 = outputs["saved_0"]
-        #     saved_1 = outputs["saved_1"] 
-        #     saved_2 = outputs["saved_2"] 
-        #     saved_3 = outputs["saved_3"]
-        #     x = saved_3
-        # else:
-        #     saved_0, saved_1, saved_2, saved_3 = model_encoder_freq.run(input_feed={"mag": input2})
-        #     x = saved_3
-        # print(f"model_encoder_freq take {time.time() - start}s")
-
-        # start = time.time()
-        # if isinstance(model_time, ort.InferenceSession):
-        #     outputs_quant = model_time.run(output_names=None, input_feed={"mix": input1, "in_x": x, "saved_1": saved_1, "saved_2": saved_2, "saved_3": saved_3})
-        # else:
-        #     outputs_quant = model_time.run(input_feed={"mix": input1, "in_x": x, })
-        # print(f"model_time take {time.time() - start}s")
-
-        # if isinstance(model_time, ort.InferenceSession):
-        #     x, xt = outputs_quant
-        # else:
-        #     x = outputs_quant["x"]
-        #     xt = outputs_quant["xt"]
-        #     saved_t_0 = outputs_quant["saved_t_0"]
-        #     saved_t_1 = outputs_quant["saved_t_1"]
-        #     saved_t_2 = outputs_quant["saved_t_2"]
-        #     saved_t_3 = outputs_quant["saved_t_3"]
-
-        # start = time.time()
-        # if isinstance(model_decoder_freq, ort.InferenceSession):
-        #     # print(f"x.shape = {x.shape}")
-        #     # print(f"saved_0.shape = {saved_0.shape}")
-        #     # print(f"saved_1.shape = {saved_1.shape}")
-        #     # print(f"saved_2.shape = {saved_2.shape}")
-        #     # print(f"saved_3.shape = {saved_3.shape}")
-        #     outputs = model_decoder_freq.run(output_names=None, input_feed={"in_x": x, "saved_0": saved_0, "saved_1": saved_1, "saved_2": saved_2, "saved_3": saved_3})
-        #     x = outputs[0]
-        # # elif isinstance(model_decoder_freq, NCNNWrapper):
-        # #     outputs = model_decoder_freq.run(["x"], {"in_x": x, "saved_0": saved_0, "saved_1": saved_1, "saved_2": saved_2, "saved_3": saved_3})
-        # #     x = outputs[0]
-        # elif isinstance(model_decoder_freq, MNNWrapper):
-        #     outputs = model_decoder_freq.run({"saved_0": saved_0, "saved_1": saved_1, "saved_2": saved_2, "saved_3": saved_3})
-        #     x = outputs["x"]
-        # else:
-        #     outputs = model_decoder_freq.run(input_feed={"in_x": x, "saved_0": saved_0,})
-        #     x = outputs["x"]
-        # print(f"model_decoder_freq take {time.time() - start}s")
-
-        # start = time.time()
-        # if isinstance(model_decoder_time, ort.InferenceSession):
-        #     outputs = model_decoder_time.run(output_names=None, input_feed={"in_xt": xt, 
-        #                                                                     "saved_t_0": saved_t_0, 
-        #                                                                     "saved_t_1": saved_t_1, 
-        #                                                                     "saved_t_2": saved_t_2, 
-        #                                                                     "saved_t_3": saved_t_3, 
-        #                                                 })
-        #     xt = outputs[0]
-        # # elif isinstance(model_decoder_time, NCNNWrapper):
-        # #     outputs = model_decoder_time.run(["xt"], {"in_xt": xt, 
-        # #                                                                     "saved_t_0": saved_t_0, 
-        # #                                                                     "saved_t_1": saved_t_1, 
-        # #                                                                     "saved_t_2": saved_t_2, 
-        # #                                                                     "saved_t_3": saved_t_3, 
-        # #                                                 })
-        # #     xt = outputs[0]
-        # elif isinstance(model_decoder_time, MNNWrapper):
-        #     outputs = model_decoder_time.run({
-        #                                     "saved_t_0": saved_t_0, 
-        #                                     "saved_t_1": saved_t_1, 
-        #                                     "saved_t_2": saved_t_2, 
-        #                                     "saved_t_3": saved_t_3
-        #                                     })
-        #     xt = outputs["xt"]
-
-        # print(f"model_decoder_time take {time.time() - start}s")
+    if isinstance(model, ort.InferenceSession):
+        outputs = model.run(None, {"mix": input1, "mag": input2})
+        x, xt = outputs
     else:
-        if isinstance(model, ort.InferenceSession):
-            outputs = model.run(None, {"mix": input1, "mag": input2})
-            x, xt = outputs
-        else:
-            outputs = model.run({"mix": input1, "mag": input2})
-            x = outputs["x"]
-            xt = outputs["xt"]
+        outputs = model.run({"mix": input1, "mag": input2})
+        x = outputs["x"]
+        xt = outputs["xt"]
         
     x = th.from_numpy(x)
     xt = th.from_numpy(xt)
 
-    # x = th.from_numpy(np.load(f"x_{index}.npy")) # x有梳子噪声
-    # xt = th.from_numpy(np.load(f"xt_{index}.npy"))
-
-    # np.save(f"test_data/input/mix/{index}.npy", input1)
-    # np.save(f"test_data/input/mag/{index}.npy", input2)
-    # np.save(f"test_data/output/x/{index}.npy", x.numpy())
-    # np.save(f"xt_gt/{index}.npy", xt.numpy())
-    # if index == 0:
-    #     input1.tofile(f"../model_convert/test_data/input/mix.bin")
-    #     input2.tofile(f"../model_convert/test_data/input/mag.bin")
-    #     x.numpy().tofile(f"../model_convert/test_data/output/x.bin")
-    #     xt.numpy().tofile(f"../model_convert/test_data/output/xt.bin")
-
-    # np.save(f"mix_quant_{index}.npy", input1)
-    # np.save(f"mag_quant_{index}.npy", input2)
-    # np.save(f"x_quant_{index}.npy", x.numpy())
-    # np.save(f"xt_quant_{index}.npy", xt.numpy())
-        
     S = 4  # len(self.source)
     B, C, Fq, T = input2.shape
 
     x = x.view(B, S, -1, Fq, T)
     x = x * std_mag + mean_mag
 
-    index += 1
-
-    start = time.time()
+    # start = time.time()
     out = demucs_post_process(x, xt, padded_mix, segment, samplerate, B, S)
-    print(f"post_process take {time.time() - start}s")
+    # print(f"post_process take {time.time() - start}s")
 
     return center_trim(out, length)

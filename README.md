@@ -1,6 +1,6 @@
 # demucs.axera
 
-音乐分离模型，[官方repo](https://github.com/facebookresearch/demucs)
+音轨分离模型，用于将音乐分成 鼓、贝斯、人声和其他乐器 四轨 [官方repo](https://github.com/facebookresearch/demucs)
 
 ## 下载模型
 ```
@@ -43,5 +43,5 @@ python3 main_onnx.py -i 输入音频文件 -m ONNX模型 --segment 模型输入�
 
 运行
 ```
-./install/demucs -m ../models/htdemucs_ft.axmodel -i 输入音频.wav -o 输出目录
+./install/demucs -m ../models/htdemucs.axmodel -i 输入音频.wav -o 输出目录
 ```

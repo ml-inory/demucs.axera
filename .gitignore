@@ -1,3 +1,5 @@
 __pycache__
 calib_*
 calibration_*
+*.onnx
+*.axmodel
