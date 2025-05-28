@@ -526,31 +526,36 @@ class HTDemucs(nn.Module):
         x = x * math.sqrt(self.nfft)
         return x
 
-    def _ispec_conv(self, x, length=None, scale=0):
+    def _ispec_conv(self, x, length):
         # mask
         B, S, C, Fr, T = x.shape
         zout = x.view(B, S, -1, 2, Fr, T).permute(0, 1, 2, 4, 5, 3)
-        zout = torch.view_as_complex(zout.contiguous())
+        # zout = torch.view_as_complex(zout.contiguous())
+        # print(f"x.size() = {x.shape}")
         # print(f"zout.size() = {zout.size()}")
 
         # ispectro
-        hl = self.hop_length // (4**scale)
-        z = F.pad(zout, (0, 0, 0, 1))
-        z = F.pad(z, (2, 2))
+        hl = self.hop_length
+        z = F.pad(zout, (0, 0, 0, 0, 0, 1))
+        z = F.pad(z, (0, 0, 2, 2))
         pad = hl // 2 * 3
-        le = hl * int(math.ceil(x.shape[-1] / hl)) + 2 * pad
+        le = hl * int(math.ceil(length / hl)) + 2 * pad
 
-        *other, freqs, frames = z.shape
+        *other, freqs, frames, _ = z.shape
         n_fft = 2 * freqs - 2
-        z = z.view(-1, freqs, frames)
-        # print(f"z.size = {z.size()}")
+        z = z.view(-1, freqs, frames, 2)
 
-        x = self.istft_module.forward(z.abs(), z.angle()).squeeze(1)
-        # print(f"x.size() = {x.size()}")
+        z_real = z[..., 0]
+        z_imag = z[..., 1]
+        mag = torch.sqrt(torch.pow(z_real, 2) + torch.pow(z_imag, 2))
+        # print(f"z_real.size = {z_real.size()}")
+        # print(f"z_imag.size = {z_imag.size()}")
+        # print(f"mag.size = {mag.size()}")
+
+        x = self.istft_module.forward(mag, z_real, z_imag).squeeze(1)
         _, le = x.shape
         x = x.view(*other, le)
         x = x[..., pad: pad + length]
-        # print(f"istft output.shape = {x.size()}")
 
         x = x * math.sqrt(self.nfft)
         return x
