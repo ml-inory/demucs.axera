@@ -237,7 +237,6 @@ def main():
     # wav /= ref.std() + 1e-8
     # wav = torch.from_numpy(wav)
 
-<<<<<<< HEAD
     # input2_shape = generate_data(
     #     wav[None],
     #     overlap=overlap,
@@ -253,23 +252,6 @@ def main():
     input_names = ("mix", )
     # output_names = ("drums_x","bass_x","other_x","vocals_x", "drums_xt","bass_xt","other_xt","vocals_xt")
     output_names = ("x", )
-=======
-    input2_shape = generate_data(
-        wav[None],
-        models=[None],
-        overlap=overlap,
-        save_path="calib_apollo",
-        segment=seconds_split,
-        max_num=max_num
-    )
-
-    # Export ONNX
-    # model.forward = model.forward_for_export
-
-    input_names = ("mix",)
-    # output_names = ("drums_x","bass_x","other_x","vocals_x", "drums_xt","bass_xt","other_xt","vocals_xt")
-    output_names = ("x",)
->>>>>>> 60c6754 (merge stft and istft to model)
 
     segment_length = int(target_sr * seconds_split)
     inputs = (
