@@ -6,3 +6,4 @@ soundfile
 onnx
 onnxruntime
 torch
+gradio
