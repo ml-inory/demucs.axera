@@ -15,7 +15,7 @@ def get_args():
     parser.add_argument("--output_path", "-o", type=str, required=False, default="./output", help="Seperated wav path")
     parser.add_argument("--model", "-m", type=str, required=False, default="../models/htdemucs.axmodel", help="demucs onnx model")
     parser.add_argument("--overlap", type=float, required=False, default=0.25)
-    parser.add_argument("--segment", type=float, required=False, default=1, help="Split in seconds")
+    parser.add_argument("--segment", type=float, required=False, default=5, help="Split in seconds")
     return parser.parse_args()
 
 
