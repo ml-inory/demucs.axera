@@ -25,7 +25,6 @@ def process_audio(input_file, pr=gr.Progress(track_tqdm=True)):
 
     print("Running demucs")
     output_files = demucs.run(input_file, output_path=output_path)
-    print(output_files)
 
     return [gr.Audio(output_files[0], type='filepath', sources=None),
             gr.Audio(output_files[1], type='filepath', sources=None),

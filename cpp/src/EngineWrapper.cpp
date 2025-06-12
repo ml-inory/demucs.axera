@@ -224,7 +224,7 @@ int EngineWrapper::Init(const char* strModelPath, uint32_t nNpuType)
 
     // 6. prepare io
     // AX_U32 nIoDepth = (stCtx.vecOutputBufferFlag.size() == 0) ? 1 : stCtx.vecOutputBufferFlag.size();
-    ret = utils::prepare_io(strModelPath, m_io_info, m_io, utils::IO_BUFFER_STRATEGY_DEFAULT);
+    ret = utils::prepare_io(strModelPath, m_io_info, m_io, utils::IO_BUFFER_STRATEGY_CACHED);
     if (0 != ret) {
         printf("prepare io failed!\n");
         utils::free_io(m_io);

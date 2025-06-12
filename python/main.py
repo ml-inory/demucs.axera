@@ -47,7 +47,8 @@ def main():
     # print(wav.shape)
 
     print("Loading model...")
-    sess = InferenceSession.load_from_model(model_path)
+    model_mem = np.fromfile(model_path, dtype=np.uint8)
+    sess = InferenceSession.load_from_mem(model_mem)
 
     print("Preprocessing audio...")
     start = time.time()

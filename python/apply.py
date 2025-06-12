@@ -158,8 +158,7 @@ def run_model(model, mix, device, samplerate, segment):
         x, xt = outputs
     else:
         outputs = model.run({"mix": input1, "mag": input2})
-        x = outputs["x"]
-        xt = outputs["xt"]
+        x, xt = outputs
         
     x = th.from_numpy(x)
     xt = th.from_numpy(xt)
