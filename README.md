@@ -45,3 +45,15 @@ python3 main_onnx.py -i 输入音频文件 -m ONNX模型 --segment 模型输入�
 ```
 ./install/demucs -m ../models/htdemucs.axmodel -i 输入音频.wav -o 输出目录
 ```
+
+## Gradio app
+
+```
+cd python
+python app.py
+
+```
+
+浏览器中打开 ip:7860  
+运行效果如图:  
+![](/doc/gradio.png)
