@@ -3,3 +3,7 @@ calib_*
 calibration_*
 *.onnx
 *.axmodel
+python/output
+*.wav
+cpp/build
+cpp/install

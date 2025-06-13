@@ -21,6 +21,9 @@ aux_source_directory(src SRC)
 add_executable(${PROJECT_NAME} main.cpp ${SRC})
 target_link_libraries(${PROJECT_NAME} ${MSP_LIBS})
 
-install(TARGETS ${PROJECT_NAME}
+add_executable(run_model run_model.cpp ${SRC})
+target_link_libraries(run_model ${MSP_LIBS})
+
+install(TARGETS ${PROJECT_NAME} run_model
         RUNTIME
         DESTINATION ./)

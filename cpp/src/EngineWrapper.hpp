@@ -25,20 +25,37 @@ public:
             m_hasInit(false),
             m_handle(nullptr) {}
 
-    ~EngineWrapper() {
+    virtual ~EngineWrapper() {
         Release();
     }
 
     int Init(const char* strModelPath, uint32_t nNpuType = 0);
+
+    inline int GetInputNum() const {
+        return m_input_num;
+    }
+
+    inline int GetOutputNum() const {
+        return m_output_num;
+    }
+
+    int GetInputShape(std::vector<int>& shape, int index);
+    int GetOutputShape(std::vector<int>& shape, int index);
+
+    int GetInputName(std::string& name, int index);
+    int GetOutputName(std::string& name, int index);
+
+    int GetInputDType(std::string& dtype, int index);
+    int GetOutputDType(std::string& dtype, int index);
+
+    int GetInputSize(int index);
+    int GetOutputSize(int index);
 
     int SetInput(void* pInput, int index);
 
     int RunSync();
 
     int GetOutput(void* pOutput, int index);
-
-    int GetInputSize(int index);
-    int GetOutputSize(int index);
 
     void* GetInputPtr(int index);
     void* GetOutputPtr(int index);

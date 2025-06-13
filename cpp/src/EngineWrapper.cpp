@@ -224,7 +224,10 @@ int EngineWrapper::Init(const char* strModelPath, uint32_t nNpuType)
 
     // 6. prepare io
     // AX_U32 nIoDepth = (stCtx.vecOutputBufferFlag.size() == 0) ? 1 : stCtx.vecOutputBufferFlag.size();
+    // ret = utils::prepare_io(strModelPath, m_io_info, m_io, utils::IO_BUFFER_STRATEGY_DEFAULT);
+    // printf("use IO_BUFFER_STRATEGY_DEFAULT!\n");
     ret = utils::prepare_io(strModelPath, m_io_info, m_io, utils::IO_BUFFER_STRATEGY_CACHED);
+    printf("use IO_BUFFER_STRATEGY_CACHED!\n");
     if (0 != ret) {
         printf("prepare io failed!\n");
         utils::free_io(m_io);
@@ -234,6 +237,138 @@ int EngineWrapper::Init(const char* strModelPath, uint32_t nNpuType)
     m_handle = handle;
     m_hasInit = true;
 
+    return 0;
+}
+
+int EngineWrapper::GetInputShape(std::vector<int>& shape, int index) {
+    if (index >= m_input_num) {
+        return -1;
+    }
+
+    auto& input = m_io_info->pInputs[index];
+    shape.resize(input.nShapeSize);
+    for (uint32_t j = 0; j < input.nShapeSize; ++j) {
+        shape[j] = (int)input.pShape[j];
+    }
+
+    return 0;
+}
+
+int EngineWrapper::GetOutputShape(std::vector<int>& shape, int index) {
+    if (index >= m_output_num) {
+        return -1;
+    }
+
+    auto& output = m_io_info->pOutputs[index];
+    shape.resize(output.nShapeSize);
+    for (uint32_t j = 0; j < output.nShapeSize; ++j) {
+        shape[j] = (int)output.pShape[j];
+    }
+
+    return 0;
+}
+
+int EngineWrapper::GetInputName(std::string& name, int index) {
+    if (index >= m_input_num) {
+        return -1;
+    }
+
+    auto& input = m_io_info->pInputs[index];
+    name = std::string(input.pName);
+
+    return 0;
+}
+
+int EngineWrapper::GetOutputName(std::string& name, int index) {
+    if (index >= m_output_num) {
+        return -1;
+    }
+
+    auto& output = m_io_info->pOutputs[index];
+    name = std::string(output.pName);
+
+    return 0;
+}
+
+int EngineWrapper::GetInputDType(std::string& dtype, int index) {
+    auto describe_data_type = [](AX_ENGINE_DATA_TYPE_T type) -> const char* {
+        switch (type) {
+            case AX_ENGINE_DT_UINT8:
+                return "uint8";
+            case AX_ENGINE_DT_UINT16:
+                return "uint16";
+            case AX_ENGINE_DT_FLOAT32:
+                return "float32";
+            case AX_ENGINE_DT_SINT16:
+                return "sint16";
+            case AX_ENGINE_DT_SINT8:
+                return "sint8";
+            case AX_ENGINE_DT_SINT32:
+                return "sint32";
+            case AX_ENGINE_DT_UINT32:
+                return "uint32";
+            case AX_ENGINE_DT_FLOAT64:
+                return "float64";
+            case AX_ENGINE_DT_UINT10_PACKED:
+                return "uint10_packed";
+            case AX_ENGINE_DT_UINT12_PACKED:
+                return "uint12_packed";
+            case AX_ENGINE_DT_UINT14_PACKED:
+                return "uint14_packed";
+            case AX_ENGINE_DT_UINT16_PACKED:
+                return "uint16_packed";
+            default:
+                return "unknown";
+        }
+    };
+
+    if (index >= m_input_num) {
+        return -1;
+    }
+
+    auto& input = m_io_info->pInputs[index];
+    dtype = std::string(describe_data_type(input.eDataType));
+    return 0;
+}
+
+int EngineWrapper::GetOutputDType(std::string& dtype, int index) {
+    auto describe_data_type = [](AX_ENGINE_DATA_TYPE_T type) -> const char* {
+        switch (type) {
+            case AX_ENGINE_DT_UINT8:
+                return "uint8";
+            case AX_ENGINE_DT_UINT16:
+                return "uint16";
+            case AX_ENGINE_DT_FLOAT32:
+                return "float32";
+            case AX_ENGINE_DT_SINT16:
+                return "sint16";
+            case AX_ENGINE_DT_SINT8:
+                return "sint8";
+            case AX_ENGINE_DT_SINT32:
+                return "sint32";
+            case AX_ENGINE_DT_UINT32:
+                return "uint32";
+            case AX_ENGINE_DT_FLOAT64:
+                return "float64";
+            case AX_ENGINE_DT_UINT10_PACKED:
+                return "uint10_packed";
+            case AX_ENGINE_DT_UINT12_PACKED:
+                return "uint12_packed";
+            case AX_ENGINE_DT_UINT14_PACKED:
+                return "uint14_packed";
+            case AX_ENGINE_DT_UINT16_PACKED:
+                return "uint16_packed";
+            default:
+                return "unknown";
+        }
+    };
+
+    if (index >= m_output_num) {
+        return -1;
+    }
+
+    auto& output = m_io_info->pOutputs[index];
+    dtype = std::string(describe_data_type(output.eDataType));
     return 0;
 }
 

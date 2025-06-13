@@ -265,7 +265,7 @@ namespace utils {
         memset(pBuf, 0, sizeof(AX_ENGINE_IO_BUFFER_T));
         pBuf->nSize = pMeta->nSize;
 
-        const std::string token_name = "skel_" + token + appendix + std::to_string(index);
+        const std::string token_name = token + appendix + std::to_string(index);
 
         if (eStrategy == IO_BUFFER_STRATEGY_CACHED) {
             ret = AX_SYS_MemAllocCached((AX_U64*)&pBuf->phyAddr, &pBuf->pVirAddr, pBuf->nSize, IO_CMM_ALIGN_SIZE, (const AX_S8*)token_name.c_str());

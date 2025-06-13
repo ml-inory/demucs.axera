@@ -8,13 +8,13 @@
         "tensor_name": "mix",
         "calibration_dataset": "./calibration_dataset/mix.tar.gz",
         "calibration_format": "Numpy",
-        "calibration_size": 1
+        "calibration_size": -1
       },
       {
         "tensor_name": "mag",
         "calibration_dataset": "./calibration_dataset/mag.tar.gz",
         "calibration_format": "Numpy",
-        "calibration_size": 1
+        "calibration_size": -1
       }
     ],
     "layer_configs": [
@@ -74,6 +74,7 @@
     ],
     "calibration_method": "MinMax",
     "conv_bias_data_type": "FP32",
+    "enable_smooth_quant": true,
     "disable_auto_refine_scale": true,
     "precision_analysis": true,
     "precision_analysis_method": "EndToEnd",
