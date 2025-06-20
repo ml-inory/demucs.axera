@@ -227,7 +227,6 @@ int EngineWrapper::Init(const char* strModelPath, uint32_t nNpuType)
     // ret = utils::prepare_io(strModelPath, m_io_info, m_io, utils::IO_BUFFER_STRATEGY_DEFAULT);
     // printf("use IO_BUFFER_STRATEGY_DEFAULT!\n");
     ret = utils::prepare_io(strModelPath, m_io_info, m_io, utils::IO_BUFFER_STRATEGY_CACHED);
-    printf("use IO_BUFFER_STRATEGY_CACHED!\n");
     if (0 != ret) {
         printf("prepare io failed!\n");
         utils::free_io(m_io);
